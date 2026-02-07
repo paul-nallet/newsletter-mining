@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__
+*.pyc
+output
+web/node_modules
+web/.nuxt
+web/.output
+web/.env

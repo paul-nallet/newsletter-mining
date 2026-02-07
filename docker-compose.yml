@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: news-mining-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: newsletter_mining
+      POSTGRES_USER: newsletter
+      POSTGRES_PASSWORD: newsletter_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newsletter -d newsletter_mining"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

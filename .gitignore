@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+output/*.json
+.ruff_cache/
+web/node_modules/
+web/.nuxt/
+web/.output/
+web/.env

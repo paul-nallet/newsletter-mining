@@ -1,0 +1,25 @@
+{
+  "name": "newsletter-mining-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@nuxt/ui": "^3.0.0",
+    "cheerio": "^1.0.0",
+    "drizzle-orm": "^0.38.0",
+    "nuxt": "^3.16.0",
+    "openai": "^4.70.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0",
+    "typescript": "^5.7.0"
+  }
+}

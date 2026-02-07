@@ -1,0 +1,17 @@
+[project]
+name = "newsletter-mining"
+version = "0.1.0"
+description = "Extract problems and pain-points from newsletters using LLMs"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.50",
+    "numpy>=1.26",
+    "rich>=13.0",
+    "beautifulsoup4>=4.12",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
