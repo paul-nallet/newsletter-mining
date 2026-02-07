@@ -14,6 +14,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NITRO_HOST=0.0.0.0
 ENV NITRO_PORT=3000
+ENV SKIP_DB_MIGRATIONS=0
+RUN apk add --no-cache postgresql-client
 EXPOSE 3000
 COPY --from=build /app/.output ./.output
-CMD ["node", ".output/server/index.mjs"]
+COPY --from=build /app/server/database/migrations ./migrations
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+CMD ["./docker-entrypoint.sh"]
