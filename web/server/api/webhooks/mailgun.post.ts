@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { useDB } from '../../database'
 import { newsletters } from '../../database/schema'
 import { parseHtml } from '../../services/parser'
+import { analyzeNewsletterById } from '../../utils/analyze'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -63,7 +64,7 @@ export default defineEventHandler(async (event) => {
   }).returning()
 
   // 4. Auto-trigger analysis (fire and forget)
-  $fetch(`/api/newsletters/${row.id}/analyze`, { method: 'POST' }).catch((err) => {
+  analyzeNewsletterById(row.id).catch((err) => {
     console.error(`Auto-analysis failed for newsletter ${row.id}:`, err)
   })
 

@@ -15,6 +15,15 @@ export default defineNuxtConfig({
     mailgunWebhookSigningKey: process.env.NUXT_MAILGUN_WEBHOOK_SIGNING_KEY || process.env.MAILGUN_WEBHOOK_SIGNING_KEY || '',
   },
 
+  nitro: {
+    experimental: {
+      tasks: true,
+    },
+    scheduledTasks: {
+      '0 6 * * *': ['analyze:pending'],
+    },
+  },
+
   devtools: { enabled: true },
   compatibilityDate: '2025-01-01',
 })
