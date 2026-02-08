@@ -28,6 +28,11 @@ has_bootstrap_schema() {
   [ "${enums_exist:-0}" -ge 4 ] && [ "${tables_exist:-0}" -ge 3 ]
 }
 
+has_better_auth_schema() {
+  auth_tables_exist="$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('user','session','account','verification');")"
+  [ "${auth_tables_exist:-0}" -ge 4 ]
+}
+
 mark_applied() {
   migration_name="$1"
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO _app_migrations (name) VALUES ('$migration_name') ON CONFLICT (name) DO NOTHING;"
@@ -50,6 +55,11 @@ apply_migration_file() {
     mark_applied "$name"
     return 0
   fi
+  if [ "$name" = "0001_better_auth.sql" ] && has_better_auth_schema; then
+    echo "Detected existing Better Auth schema for $name; marking as applied."
+    mark_applied "$name"
+    return 0
+  fi
 
   echo "Applying migration: $name"
   if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -1 -f "$file"; then
@@ -60,6 +70,11 @@ apply_migration_file() {
   # Last-resort recovery for bootstrap migration if a partial schema already exists.
   if [ "$name" = "0000_true_kinsey_walden.sql" ] && has_bootstrap_schema; then
     echo "Bootstrap migration failed but schema already exists; marking as applied."
+    mark_applied "$name"
+    return 0
+  fi
+  if [ "$name" = "0001_better_auth.sql" ] && has_better_auth_schema; then
+    echo "Better Auth migration failed but schema already exists; marking as applied."
     mark_applied "$name"
     return 0
   fi
