@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm'
-import { useDB } from '../database'
-import { newsletters } from '../database/schema'
-import { analyzeNewsletterById } from '../utils/analyze'
+import { useDB } from '../../database'
+import { newsletters } from '../../database/schema'
+import { analyzeNewsletterById } from '../../utils/analyze'
+import { generateClusters, enrichClusterSummaries } from '../../services/clustering'
 
 export default defineTask({
   meta: {
@@ -34,6 +35,18 @@ export default defineTask({
     }
 
     console.log(`[analyze:pending] Done: ${analyzed} analyzed, ${failed} failed`)
+
+    // Regenerate clusters if any newsletters were analyzed
+    if (analyzed > 0) {
+      try {
+        const clusterResult = await generateClusters()
+        await enrichClusterSummaries()
+        console.log(`[analyze:pending] Clusters regenerated: ${clusterResult.totalClusters} clusters from ${clusterResult.totalProblems} problems`)
+      }
+      catch (err) {
+        console.error('[analyze:pending] Cluster generation failed:', err)
+      }
+    }
 
     return { result: { analyzed, failed } }
   },

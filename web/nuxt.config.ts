@@ -13,6 +13,8 @@ export default defineNuxtConfig({
     openaiApiKey: process.env.NUXT_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '',
     databaseUrl: process.env.NUXT_DATABASE_URL || process.env.DATABASE_URL || '',
     mailgunWebhookSigningKey: process.env.NUXT_MAILGUN_WEBHOOK_SIGNING_KEY || process.env.MAILGUN_WEBHOOK_SIGNING_KEY || '',
+    betterAuthSecret: process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || '',
+    betterAuthUrl: process.env.NUXT_BETTER_AUTH_URL || process.env.BETTER_AUTH_URL || '',
   },
 
   nitro: {
@@ -24,6 +26,7 @@ export default defineNuxtConfig({
     },
   },
 
+
   devtools: { enabled: true },
-  compatibilityDate: '2025-01-01',
+  compatibilityDate: '2026-01-01',
 })
