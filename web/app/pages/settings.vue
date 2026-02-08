@@ -16,9 +16,19 @@ async function regenerateClusters() {
   try {
     const result = await $fetch('/api/clusters/generate', { method: 'POST' })
     generateResult.value = result
+    toast.add({
+      title: 'Clusters regenerated',
+      description: `Created ${result.totalClusters} clusters from ${result.totalProblems} problems.`,
+      color: 'success',
+    })
   }
   catch (e: any) {
     generateResult.value = { success: false }
+    toast.add({
+      title: 'Cluster generation failed',
+      description: e?.data?.statusMessage || e?.message || 'Unknown error',
+      color: 'error',
+    })
   }
   finally {
     generating.value = false

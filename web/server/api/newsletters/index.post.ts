@@ -1,6 +1,7 @@
 import { useDB } from '../../database'
 import { newsletters } from '../../database/schema'
 import { parseHtml, extractSubjectFromHtml } from '../../services/parser'
+import { emitAppEvent } from '../../utils/eventBus'
 
 export default defineEventHandler(async (event) => {
   const db = useDB()
@@ -34,6 +35,8 @@ export default defineEventHandler(async (event) => {
       sourceType: 'file',
     }).returning()
 
+    emitAppEvent('newsletter:uploaded', { id: row!.id, subject: row!.subject || '' })
+
     return row
   }
 
@@ -51,6 +54,8 @@ export default defineEventHandler(async (event) => {
     textBody: body.textBody,
     sourceType: 'file',
   }).returning()
+
+  emitAppEvent('newsletter:uploaded', { id: row!.id, subject: row!.subject || '' })
 
   return row
 })

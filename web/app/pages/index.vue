@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const { data: stats } = await useFetch('/api/stats')
-const { data: clusters } = await useFetch('/api/clusters')
+const { stats, clusters, fetchStats, fetchClusters } = useAppData()
+await Promise.all([fetchStats(), fetchClusters()])
 </script>
 
 <template>

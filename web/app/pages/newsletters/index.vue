@@ -1,5 +1,8 @@
 <script setup lang="ts">
-const { data: newsletterList, refresh } = await useFetch('/api/newsletters')
+const { newsletters: newsletterList, analyzeAllRunning, fetchNewsletters } = useAppData()
+const toast = useToast()
+
+await fetchNewsletters()
 
 const fileInput = ref<HTMLInputElement>()
 const uploading = ref(false)
@@ -18,7 +21,10 @@ async function handleFileUpload(event: Event) {
     const formData = new FormData()
     formData.append('file', file)
     await $fetch('/api/newsletters', { method: 'POST', body: formData })
-    await refresh()
+    toast.add({ title: 'Newsletter uploaded', color: 'success' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Upload failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
   }
   finally {
     uploading.value = false
@@ -32,12 +38,33 @@ async function triggerAnalysis(id: string) {
   analyzing.value = id
   try {
     await $fetch(`/api/newsletters/${id}/analyze`, { method: 'POST' })
-    await refresh()
+    toast.add({ title: 'Analysis complete', color: 'success' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Analysis failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
   }
   finally {
     analyzing.value = null
   }
 }
+
+async function triggerAnalyzeAll() {
+  analyzeAllRunning.value = true
+  try {
+    const result = await $fetch('/api/newsletters/analyze-all', { method: 'POST' })
+    if (!result.started) {
+      toast.add({ title: 'Nothing to analyze', description: 'All newsletters are already analyzed.', color: 'neutral' })
+      analyzeAllRunning.value = false
+    }
+    // If started, loading state clears when analyze-all:done SSE event arrives
+  }
+  catch (e: any) {
+    toast.add({ title: 'Batch analysis failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
+    analyzeAllRunning.value = false
+  }
+}
+
+const pendingCount = computed(() => newsletterList.value?.filter(n => !n.analyzed).length ?? 0)
 </script>
 
 <template>
@@ -51,6 +78,14 @@ async function triggerAnalysis(id: string) {
           class="hidden"
           @change="handleFileUpload"
         >
+        <UButton
+          v-if="pendingCount > 0"
+          icon="i-lucide-sparkles"
+          :label="`Analyze All (${pendingCount})`"
+          variant="soft"
+          :loading="analyzeAllRunning"
+          @click="triggerAnalyzeAll"
+        />
         <UButton
           icon="i-lucide-upload"
           label="Upload"

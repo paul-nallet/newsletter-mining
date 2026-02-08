@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
+const toast = useToast()
 const { data: newsletter, refresh } = await useFetch(`/api/newsletters/${route.params.id}`)
 
 const analyzing = ref(false)
@@ -9,6 +10,10 @@ async function triggerAnalysis() {
   try {
     await $fetch(`/api/newsletters/${route.params.id}/analyze`, { method: 'POST' })
     await refresh()
+    toast.add({ title: 'Analysis complete', color: 'success' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Analysis failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
   }
   finally {
     analyzing.value = false
