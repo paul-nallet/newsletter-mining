@@ -1,111 +1,552 @@
 <script setup lang="ts">
-const { stats, clusters, fetchStats, fetchClusters } = useAppData()
-await Promise.all([fetchStats(), fetchClusters()])
+import type { AccordionItem, ButtonProps, NavigationMenuItem, PricingPlanProps } from '@nuxt/ui'
 
-const isEmptyState = computed(() => (stats.value?.totalNewsletters ?? 0) === 0 && !clusters.value?.length)
+definePageMeta({ layout: false })
 
-const showWelcome = ref(false)
-onMounted(() => {
-  if (!localStorage.getItem('nm-welcome-seen')) {
-    showWelcome.value = true
-  }
+useSeoMeta({
+  title: 'Newsletter Mining - Find hidden value in unread newsletters',
+  description: 'Too many newsletters and no time to read them all? Turn inbox noise into clear product opportunities.',
 })
-function dismissWelcome() {
-  showWelcome.value = false
-  localStorage.setItem('nm-welcome-seen', '1')
+
+const navItems = ref<NavigationMenuItem[]>([
+  { label: 'Product', to: '#features' },
+  { label: 'How it works', to: '#pipeline' },
+  { label: 'Pricing', to: '#pricing' },
+  { label: 'Waitlist', to: '#waitlist' },
+  { label: 'FAQ', to: '#faq' },
+])
+
+const heroLinks = ref<ButtonProps[]>([
+  {
+    label: 'Join waitlist',
+    to: '#waitlist',
+    color: 'neutral',
+    trailingIcon: 'i-lucide-arrow-right',
+  },
+  {
+    label: 'Open dashboard',
+    to: '/app',
+    color: 'neutral',
+    variant: 'subtle',
+  },
+])
+
+const featureCards = [
+  {
+    id: 'capture',
+    title: 'Capture everything automatically',
+    description: 'Newsletters flow in without copy-paste, so nothing important gets lost.',
+    icon: 'i-lucide-inbox',
+  },
+  {
+    id: 'extract',
+    title: 'Pull out real customer pain',
+    description: 'We surface recurring frustrations and needs hidden in long email threads.',
+    icon: 'i-lucide-search-check',
+  },
+  {
+    id: 'group',
+    title: 'Group similar signals',
+    description: 'Related problems are grouped so patterns are obvious at a glance.',
+    icon: 'i-lucide-layers-3',
+  },
+  {
+    id: 'decide',
+    title: 'Prioritize what to build next',
+    description: 'See what appears most often, what hurts most, and what is rising fast.',
+    icon: 'i-lucide-target',
+  },
+] as const
+
+const pipelineCards = [
+  {
+    id: 'step-1',
+    title: '1. Collect',
+    description: 'Your newsletters are collected in one place in the background.',
+    icon: 'i-lucide-inbox',
+    tag: 'No manual sorting',
+  },
+  {
+    id: 'step-2',
+    title: '2. Detect',
+    description: 'The system finds repeated pain points and key quotes for context.',
+    icon: 'i-lucide-scan-text',
+    tag: 'Clear and readable output',
+  },
+  {
+    id: 'step-3',
+    title: '3. Act',
+    description: 'You get ranked opportunities so product decisions are faster and safer.',
+    icon: 'i-lucide-chart-no-axes-column-increasing',
+    tag: 'Focus on what matters',
+  },
+] as const
+
+const billingModel = ref('monthly')
+
+const billingItems = ref([
+  { label: 'Monthly', value: 'monthly' },
+  { label: 'Yearly', value: 'yearly' },
+])
+
+interface PlanSource {
+  title: string
+  description: string
+  monthlyPrice: string
+  yearlyPrice: string
+  originalMonthlyPrice?: string
+  originalYearlyPrice?: string
+  billingPeriod: string
+  features: string[]
+  button: ButtonProps
+  badge?: string
+  highlight?: boolean
+  scale?: boolean
+  tagline?: string
 }
 
+const planSources = ref<PlanSource[]>([
+  {
+    title: 'Starter',
+    description: 'For solo founders getting started with newsletter signal mining.',
+    monthlyPrice: '$0',
+    yearlyPrice: '$0',
+    billingPeriod: 'free forever',
+    features: [
+      '50 newsletter analyses per month',
+      'Core opportunity dashboard',
+      'Manual re-run of analyses',
+      '1 workspace',
+    ],
+    button: {
+      label: 'Start free',
+      color: 'neutral',
+      variant: 'subtle',
+      to: '/register',
+    },
+  },
+  {
+    title: 'Growth',
+    description: 'For non-technical operators who need weekly product insights.',
+    monthlyPrice: '$39',
+    yearlyPrice: '$390',
+    originalMonthlyPrice: '$78',
+    originalYearlyPrice: '$780',
+    billingPeriod: '2 months free',
+    badge: 'Most popular - Beta -50%',
+    highlight: true,
+    scale: true,
+    tagline: 'Best value for consistent insight',
+    features: [
+      '500 newsletter analyses per month',
+      'Trend and severity tracking',
+      'Advanced clustering view',
+      'Priority support',
+    ],
+    button: {
+      label: 'Choose Growth',
+      color: 'neutral',
+      to: '/register',
+    },
+  },
+  {
+    title: 'Studio',
+    description: 'For teams tracking multiple topics and bigger newsletter volumes.',
+    monthlyPrice: '$99',
+    yearlyPrice: '$990',
+    originalMonthlyPrice: '$198',
+    originalYearlyPrice: '$1980',
+    billingPeriod: '2 months free',
+    badge: 'Beta -50%',
+    features: [
+      '2,000 newsletter analyses per month',
+      'Topic-based segmentation',
+      'API access',
+      'Guided onboarding',
+    ],
+    button: {
+      label: 'Talk to us',
+      color: 'neutral',
+      variant: 'outline',
+      to: 'mailto:hello@newsletter-mining.local?subject=Studio%20plan',
+    },
+  },
+])
+
+const pricingPlans = computed<PricingPlanProps[]>(() => {
+  return planSources.value.map((plan) => {
+    const cyclePrice = billingModel.value === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice
+    const cycleOriginalPrice = billingModel.value === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice
+
+    return {
+      title: plan.title,
+      description: plan.description,
+      price: cycleOriginalPrice ?? cyclePrice,
+      discount: cycleOriginalPrice ? cyclePrice : undefined,
+      billingCycle: billingModel.value === 'yearly' ? '/year' : '/month',
+      billingPeriod: billingModel.value === 'yearly' ? `${plan.billingPeriod} (beta pricing)` : 'billed monthly (beta pricing)',
+      badge: plan.badge,
+      highlight: plan.highlight,
+      scale: plan.scale,
+      tagline: plan.tagline,
+      features: plan.features,
+      button: plan.button,
+      variant: plan.highlight ? 'subtle' : 'outline',
+    }
+  })
+})
+
+const faqItems = ref<AccordionItem[]>([
+  {
+    label: 'Do I need technical skills to use this?',
+    content: 'No. The product is designed for non-technical users. Setup is guided and the dashboard is plain-language.',
+  },
+  {
+    label: 'What if I already have a large backlog of newsletters?',
+    content: 'You can import old newsletters and analyze them to find patterns you missed over time.',
+  },
+  {
+    label: 'How quickly will I see value?',
+    content: 'Most users see recurring themes after their first analysis batch, then refine decisions week by week.',
+  },
+  {
+    label: 'Is my inbox data protected?',
+    content: 'Inbound requests are verified before processing, and data is kept in your own secured environment.',
+  },
+])
+
+const footerColumns = [
+  {
+    label: 'Product',
+    children: [
+      { label: 'Features', to: '#features' },
+      { label: 'How it works', to: '#pipeline' },
+      { label: 'Pricing', to: '#pricing' },
+    ],
+  },
+  {
+    label: 'App',
+    children: [
+      { label: 'Dashboard', to: '/app' },
+      { label: 'Newsletters', to: '/newsletters' },
+      { label: 'Settings', to: '/settings' },
+    ],
+  },
+  {
+    label: 'Account',
+    children: [
+      { label: 'Login', to: '/login' },
+      { label: 'Register', to: '/register' },
+      { label: 'Feedback', to: 'mailto:?subject=Newsletter%20Mining%20Feedback' },
+    ],
+  },
+]
 </script>
 
 <template>
-  <UDashboardPanel>
-    <template #header>
-      <UDashboardNavbar :title="isEmptyState ? 'Getting Started' : 'Top Problems'">
-        <template #right>
-          <div v-if="!isEmptyState && stats?.severityBreakdown && Object.keys(stats.severityBreakdown).length" class="flex gap-2">
-            <SeverityBadge
-              v-for="(count, severity) in stats.severityBreakdown"
-              :key="severity"
-              :severity="severity"
-              :count="count"
+  <div class="landing-page min-h-screen">
+    <UHeader
+      title="Newsletter Mining"
+      :ui="{ root: 'sticky top-0 z-40 border-b border-[var(--ui-border)]/70 bg-white/80 backdrop-blur dark:bg-neutral-950/75' }"
+    >
+      <template #left>
+        <NuxtLink to="/" class="inline-flex items-center gap-2 text-sm font-semibold">
+          <span class="inline-flex size-7 items-center justify-center rounded-md bg-[var(--ui-primary)] text-[var(--ui-bg)]">
+            NM
+          </span>
+          Newsletter Mining
+        </NuxtLink>
+      </template>
+
+      <template #right>
+        <UNavigationMenu :items="navItems" variant="link" class="hidden lg:block" />
+        <UButton to="/login" color="neutral" variant="ghost" label="Login" class="hidden sm:inline-flex" />
+        <UButton to="#waitlist" color="neutral" label="Join waitlist" />
+      </template>
+
+      <template #body>
+        <UNavigationMenu :items="navItems" orientation="vertical" class="-mx-2.5" />
+        <div class="mt-4 flex flex-wrap gap-2 px-2">
+          <UButton to="/login" color="neutral" variant="ghost" label="Login" />
+          <UButton to="#waitlist" color="neutral" label="Join waitlist" />
+        </div>
+      </template>
+    </UHeader>
+
+    <UMain>
+      <UPageHero
+        headline="Too many newsletters. Not enough time."
+        title="Find hidden product opportunities in newsletters you no longer read."
+        description="Newsletter Mining turns inbox overload into clear, ranked opportunities so you can make better product bets faster."
+        :links="heroLinks"
+        orientation="horizontal"
+        :ui="{ container: 'py-16 lg:py-22' }"
+      >
+        <template #top>
+          <div class="hero-aura" />
+        </template>
+
+        <UPageCard
+          title="Your weekly signal brief"
+          description="A simple view of what people keep struggling with and asking for."
+          icon="i-lucide-gauge"
+          variant="subtle"
+          class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90"
+        >
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="rounded-md border border-[var(--ui-border)] p-3">
+              <p class="text-xs text-[var(--ui-text-muted)]">Input</p>
+              <p class="mt-1 text-sm font-semibold">Unread newsletters</p>
+            </div>
+            <div class="rounded-md border border-[var(--ui-border)] p-3">
+              <p class="text-xs text-[var(--ui-text-muted)]">Output</p>
+              <p class="mt-1 text-sm font-semibold">Recurring pain points</p>
+            </div>
+            <div class="rounded-md border border-[var(--ui-border)] p-3">
+              <p class="text-xs text-[var(--ui-text-muted)]">Clarity</p>
+              <p class="mt-1 text-sm font-semibold">Grouped by themes</p>
+            </div>
+            <div class="rounded-md border border-[var(--ui-border)] p-3">
+              <p class="text-xs text-[var(--ui-text-muted)]">Decision</p>
+              <p class="mt-1 text-sm font-semibold">What to build next</p>
+            </div>
+          </div>
+        </UPageCard>
+
+        <div class="mt-6 max-w-xl">
+          <LandingWaitlistInlineForm
+            source="hero-section"
+            title="See hidden value in your unread newsletters"
+            description="Join the waitlist and get early beta access."
+            button-label="Join waitlist"
+          />
+        </div>
+      </UPageHero>
+
+      <USeparator class="h-px" />
+
+      <UPageSection
+        id="features"
+        headline="Product"
+        title="Built for people who want insight, not technical complexity"
+        description="Everything is designed to make hidden value obvious in minutes."
+      >
+        <UPageGrid class="w-full">
+          <UPageCard
+            v-for="feature in featureCards"
+            :key="feature.id"
+            :title="feature.title"
+            :description="feature.description"
+            :icon="feature.icon"
+            variant="subtle"
+          />
+        </UPageGrid>
+
+        <div class="mx-auto mt-8 w-full max-w-2xl">
+          <LandingWaitlistInlineForm
+            source="features-section"
+            title="Want this in your workflow?"
+            description="Drop your email to join the early access list."
+            button-label="Join waitlist"
+          />
+        </div>
+      </UPageSection>
+
+      <USeparator class="h-px" />
+
+      <UPageSection
+        id="pipeline"
+        headline="How it works"
+        title="From inbox overload to clear product direction in 3 steps"
+        description="No complex workflow. Just a repeatable system you can trust every week."
+      >
+        <UPageGrid class="w-full">
+          <UPageCard
+            v-for="step in pipelineCards"
+            :key="step.id"
+            :title="step.title"
+            :description="step.description"
+            :icon="step.icon"
+            highlight
+            spotlight
+            variant="outline"
+          >
+            <template #footer>
+              <UBadge color="neutral" variant="subtle">
+                {{ step.tag }}
+              </UBadge>
+            </template>
+          </UPageCard>
+        </UPageGrid>
+
+        <div class="mx-auto mt-8 w-full max-w-2xl">
+          <LandingWaitlistInlineForm
+            source="pipeline-section"
+            title="Ready for a simpler weekly process?"
+            description="Join the waitlist and get notified when seats open."
+            button-label="Join waitlist"
+          />
+        </div>
+      </UPageSection>
+
+      <USeparator class="h-px" />
+
+      <UPageSection
+        id="pricing"
+        headline="Pricing"
+        title="Simple plans, clear limits"
+        description="Beta launch pricing is live: all paid plans are 50% off for early users."
+      >
+        <template #links>
+          <UTabs
+            v-model="billingModel"
+            :items="billingItems"
+            color="neutral"
+            size="xs"
+            class="w-52"
+            :ui="{
+              list: 'ring ring-accented rounded-full',
+              indicator: 'rounded-full',
+              trigger: 'w-1/2'
+            }"
+          />
+        </template>
+
+        <UPricingPlans scale class="w-full">
+          <UPricingPlan
+            v-for="plan in pricingPlans"
+            :key="plan.title"
+            v-bind="plan"
+          />
+        </UPricingPlans>
+
+        <div class="mx-auto mt-8 w-full max-w-2xl">
+          <LandingWaitlistInlineForm
+            source="pricing-section"
+            title="Lock your beta access"
+            description="Join now to keep the 50% beta pricing when your invite is ready."
+            button-label="Join waitlist"
+          />
+        </div>
+      </UPageSection>
+
+      <USeparator class="h-px" />
+
+      <UPageSection
+        id="faq"
+        headline="FAQ"
+        title="Answers before you start"
+        description="Straight answers for non-technical teams and solo founders."
+      >
+        <UAccordion
+          :items="faqItems"
+          :default-value="['0']"
+          type="multiple"
+          :unmount-on-hide="false"
+          class="mx-auto w-full max-w-3xl"
+          :ui="{
+            trigger: 'text-base text-highlighted',
+            body: 'text-base text-muted'
+          }"
+        />
+
+        <div class="mx-auto mt-8 w-full max-w-2xl">
+          <LandingWaitlistInlineForm
+            source="faq-section"
+            title="Still interested?"
+            description="Add your email and we will send one invite email when access opens."
+            button-label="Join waitlist"
+          />
+        </div>
+      </UPageSection>
+
+      <UPageSection :ui="{ container: 'px-0 sm:px-4' }">
+        <UPageCTA
+          id="waitlist"
+          title="Join the waitlist and turn inbox overload into clear opportunities"
+          description="Drop your email and get early access when waitlist seats open."
+          orientation="horizontal"
+          class="rounded-none border-y border-[var(--ui-border)] sm:rounded-xl sm:border"
+        >
+          <div class="grid w-full gap-4 lg:grid-cols-2">
+            <div class="rounded-lg border border-[var(--ui-border)] bg-white/85 p-4 dark:bg-neutral-900/85">
+              <p class="text-xs uppercase tracking-wide text-[var(--ui-text-muted)]">What to expect</p>
+              <ul class="mt-3 space-y-2 text-sm">
+                <li class="flex items-center gap-2">
+                  <UIcon name="i-lucide-check" class="size-4 text-[var(--ui-primary)]" />
+                  Fast setup for non-technical users
+                </li>
+                <li class="flex items-center gap-2">
+                  <UIcon name="i-lucide-check" class="size-4 text-[var(--ui-primary)]" />
+                  Weekly view of recurring customer pain
+                </li>
+                <li class="flex items-center gap-2">
+                  <UIcon name="i-lucide-check" class="size-4 text-[var(--ui-primary)]" />
+                  Priority list for smarter product bets
+                </li>
+              </ul>
+            </div>
+
+            <LandingWaitlistInlineForm
+              source="final-cta"
+              title="Get early access"
+              description="Enter your email to join the waitlist and keep beta pricing at 50% off."
+              button-label="Join waitlist"
             />
           </div>
-        </template>
-      </UDashboardNavbar>
-    </template>
+        </UPageCTA>
+      </UPageSection>
+    </UMain>
 
-    <template #body>
-      <!-- Getting Started -->
-      <div v-if="isEmptyState" class="flex items-center justify-center min-h-[60vh]">
-        <div class="max-w-lg w-full space-y-6">
-          <div class="text-center">
-            <UIcon name="i-lucide-newspaper" class="size-12 mx-auto mb-4 text-[var(--ui-primary)]" />
-            <h2 class="text-xl font-semibold">Welcome to Newsletter Mining</h2>
-            <p class="text-sm text-[var(--ui-text-muted)] mt-1">
-              Extract problems and opportunities from your newsletters in 3 steps.
-            </p>
-          </div>
+    <USeparator class="h-px" />
 
-          <HomeGettingStartedStepper />
-        </div>
-      </div>
+    <UFooter>
+      <template #top>
+        <UContainer>
+          <UFooterColumns :columns="footerColumns" />
+        </UContainer>
+      </template>
 
-      <!-- Normal dashboard -->
-      <div v-else class="space-y-6">
-        <!-- Stats overview -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatsCard
-            title="Newsletters Analyzed"
-            :value="stats?.totalNewsletters ?? 0"
-            icon="i-lucide-mail"
-          />
-          <StatsCard
-            title="Problems Extracted"
-            :value="stats?.totalProblems ?? 0"
-            icon="i-lucide-alert-triangle"
-          />
-          <StatsCard
-            title="Problem Clusters"
-            :value="stats?.totalClusters ?? 0"
-            icon="i-lucide-layers"
-          />
-        </div>
+      <template #left>
+        <p class="text-sm text-[var(--ui-text-muted)]">
+          Newsletter Mining - Hidden value from your inbox - {{ new Date().getFullYear() }}
+        </p>
+      </template>
 
-        <!-- Cluster bubble chart -->
-        <ClusterBubbleChart v-if="clusters?.length" :clusters="clusters" />
-
-        <!-- Cluster list -->
-        <div class="space-y-4">
-          <ClusterCard
-            v-for="cluster in clusters"
-            :key="cluster.id"
-            :cluster="cluster"
-          />
-
-          <UCard v-if="!clusters?.length" variant="subtle">
-            <div class="text-center py-12">
-              <UIcon name="i-lucide-layers" class="size-10 mx-auto mb-3 opacity-50" />
-              <p class="font-medium">No clusters yet</p>
-              <p class="text-sm mt-1">Analyze some newsletters first, then generate clusters.</p>
-            </div>
-          </UCard>
-        </div>
-      </div>
-
-      <!-- Welcome modal -->
-      <UModal v-model:open="showWelcome" title="Welcome to Newsletter Mining" :close="{ color: 'neutral', variant: 'ghost' }">
-        <template #body>
-          <p class="text-sm text-[var(--ui-text-muted)]">
-            This tool helps you extract actionable problems from newsletters.
-            Upload newsletters, analyze them with AI, and discover recurring opportunities.
-          </p>
-        </template>
-        <template #footer>
-          <div class="flex justify-end w-full">
-            <UButton label="Get Started" icon="i-lucide-arrow-right" trailing @click="dismissWelcome" />
-          </div>
-        </template>
-      </UModal>
-    </template>
-  </UDashboardPanel>
+      <template #right>
+        <UButton
+          to="#waitlist"
+          icon="i-lucide-rocket"
+          aria-label="Join waitlist"
+          color="neutral"
+          variant="ghost"
+        />
+        <UButton
+          to="/app"
+          icon="i-lucide-layout-dashboard"
+          aria-label="Dashboard"
+          color="neutral"
+          variant="ghost"
+        />
+      </template>
+    </UFooter>
+  </div>
 </template>
+
+<style scoped>
+.landing-page {
+  background:
+    radial-gradient(40rem 24rem at 0% 0%, color-mix(in oklab, var(--ui-primary) 12%, transparent), transparent 72%),
+    radial-gradient(30rem 22rem at 92% 4%, color-mix(in oklab, #777 9%, transparent), transparent 74%),
+    var(--ui-bg);
+}
+
+.hero-aura {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(24rem 20rem at 20% 20%, color-mix(in oklab, var(--ui-primary) 10%, transparent), transparent 78%),
+    radial-gradient(28rem 18rem at 78% 12%, color-mix(in oklab, var(--ui-primary) 8%, transparent), transparent 80%);
+}
+</style>

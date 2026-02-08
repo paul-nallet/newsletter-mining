@@ -1,4 +1,5 @@
-const publicPaths = new Set(['/login', '/register'])
+const publicPaths = new Set(['/', '/login', '/register'])
+const authPaths = new Set(['/login', '/register'])
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path.startsWith('/_nuxt') || to.path.startsWith('/__nuxt_error')) {
@@ -6,6 +7,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   const isPublic = publicPaths.has(to.path)
+  const isAuthPath = authPaths.has(to.path)
 
   const { session, fetch } = useAuthSession()
 
@@ -18,7 +20,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
   }
 
-  if (isAuthenticated && isPublic) {
-    return navigateTo('/')
+  if (isAuthenticated && isAuthPath) {
+    return navigateTo('/app')
   }
 })

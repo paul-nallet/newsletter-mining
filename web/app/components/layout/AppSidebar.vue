@@ -16,8 +16,8 @@ const toast = useToast()
 const route = useRoute()
 
 function isRouteActive(path: string) {
-  if (path === '/') {
-    return route.path === '/' || route.path.startsWith('/clusters')
+  if (path === '/app') {
+    return route.path === '/app' || route.path.startsWith('/clusters')
   }
   if (path === '/newsletters') {
     return route.path.startsWith('/newsletters')
@@ -32,8 +32,8 @@ const mainItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Top Problems',
     icon: 'i-lucide-flame',
-    to: '/',
-    active: isRouteActive('/'),
+    to: '/app',
+    active: isRouteActive('/app'),
   },
   {
     label: 'Newsletters',

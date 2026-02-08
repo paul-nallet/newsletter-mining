@@ -38,7 +38,7 @@ async function handleLogin(event: FormSubmitEvent<Schema>) {
   // Refresh session state so the middleware sees authenticated: true immediately
   await useAuthSession().fetch()
 
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/app'
   await navigateTo(redirect)
 }
 

@@ -43,7 +43,7 @@ async function handleRegister(event: FormSubmitEvent<Schema>) {
   // Refresh session state so the middleware sees authenticated: true immediately
   await useAuthSession().fetch()
 
-  await navigateTo('/')
+  await navigateTo('/app')
 }
 
 const fields = ref<AuthFormField[]>([

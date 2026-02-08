@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
   index,
+  uniqueIndex,
   check,
   pgEnum,
 } from 'drizzle-orm/pg-core'
@@ -48,6 +49,23 @@ export const newsletters = pgTable('newsletters', {
   keyTopics: jsonb('key_topics').$type<string[]>().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+export const waitlistSignups = pgTable(
+  'waitlist_signups',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: varchar('email', { length: 320 }).notNull(),
+    source: varchar('source', { length: 120 }).notNull().default('landing'),
+    ipHash: varchar('ip_hash', { length: 128 }).default(''),
+    userAgent: text('user_agent').default(''),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('waitlist_signups_email_unique_idx').on(table.email),
+    index('waitlist_signups_created_at_idx').on(table.createdAt),
+  ],
+)
 
 export const problems = pgTable(
   'problems',
