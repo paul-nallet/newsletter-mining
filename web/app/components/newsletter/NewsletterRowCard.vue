@@ -4,6 +4,7 @@ import type { NewsletterListItem } from '#shared/types/newsletter'
 const props = defineProps<{
   newsletter: NewsletterListItem
   analyzing: string | null
+  creditsExhausted?: boolean
 }>()
 const { newsletter, analyzing } = toRefs(props)
 
@@ -14,7 +15,7 @@ const emit = defineEmits<{
 const subjectLabel = computed(() => props.newsletter.subject?.trim() || '(no subject)')
 const senderLabel = computed(() => props.newsletter.fromName?.trim() || props.newsletter.fromEmail?.trim() || 'Unknown sender')
 const receivedAtLabel = computed(() => {
-  return new Date(props.newsletter.receivedAt).toLocaleDateString('fr-FR', {
+  return new Date(props.newsletter.receivedAt).toLocaleDateString('en-US', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -23,8 +24,10 @@ const receivedAtLabel = computed(() => {
 
 const problemCountLabel = computed(() => {
   const count = props.newsletter.problemCount
-  return `${count} probleme${count > 1 ? 's' : ''}`
+  return `${count} problem${count !== 1 ? 's' : ''}`
 })
+
+const isAnalyzeDisabled = computed(() => Boolean(props.creditsExhausted))
 </script>
 
 <template>
@@ -89,6 +92,7 @@ const problemCountLabel = computed(() => {
           size="sm"
           variant="soft"
           :loading="analyzing === newsletter.id"
+          :disabled="isAnalyzeDisabled"
           @click="emit('trigger-analysis', newsletter.id)"
         />
 

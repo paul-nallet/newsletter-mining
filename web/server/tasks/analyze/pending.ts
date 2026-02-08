@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { useDB } from '../../database'
 import { newsletters } from '../../database/schema'
+import { CreditExhaustedError } from '../../services/credits'
 import { analyzeNewsletterById } from '../../utils/analyze'
 import { generateClusters, enrichClusterSummaries } from '../../services/clustering'
 
@@ -21,20 +22,27 @@ export default defineTask({
 
     let analyzed = 0
     let failed = 0
+    let skippedDueToCredits = 0
 
-    for (const newsletter of pending) {
+    for (let i = 0; i < pending.length; i++) {
+      const newsletter = pending[i]
       try {
-        const result = await analyzeNewsletterById(newsletter.id)
+        const result = await analyzeNewsletterById(newsletter.id, { source: 'task' })
         analyzed++
         console.log(`[analyze:pending] ✓ ${newsletter.subject || newsletter.id} — ${result.problemCount} problem(s)`)
       }
       catch (err) {
+        if (err instanceof CreditExhaustedError) {
+          skippedDueToCredits = pending.length - i
+          console.warn(`[analyze:pending] Credit limit reached, skipping ${skippedDueToCredits} newsletter(s)`)
+          break
+        }
         failed++
         console.error(`[analyze:pending] ✗ ${newsletter.subject || newsletter.id}:`, err)
       }
     }
 
-    console.log(`[analyze:pending] Done: ${analyzed} analyzed, ${failed} failed`)
+    console.log(`[analyze:pending] Done: ${analyzed} analyzed, ${failed} failed, ${skippedDueToCredits} skipped (credits)`)
 
     // Regenerate clusters if any newsletters were analyzed
     if (analyzed > 0) {
@@ -48,6 +56,6 @@ export default defineTask({
       }
     }
 
-    return { result: { analyzed, failed } }
+    return { result: { analyzed, failed, skippedDueToCredits } }
   },
 })

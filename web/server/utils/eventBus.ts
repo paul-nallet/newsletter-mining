@@ -4,8 +4,16 @@ export interface AppEventMap {
   'newsletter:uploaded': { id: string; subject: string }
   'newsletter:analyzed': { id: string; problemCount: number }
   'clusters:updated': { totalClusters: number; totalProblems: number }
-  'analyze-all:progress': { current: number; total: number; failed: number }
-  'analyze-all:done': { analyzed: number; failed: number; total: number }
+  'analyze-all:progress': { current: number; total: number; failed: number; skippedDueToCredits?: number }
+  'analyze-all:done': { analyzed: number; failed: number; total: number; skippedDueToCredits?: number }
+  'credits:updated': {
+    limit: number
+    periodStart: string
+    consumed: number
+    reserved: number
+    remaining: number
+    exhausted: boolean
+  }
 }
 
 const emitter = new EventEmitter()

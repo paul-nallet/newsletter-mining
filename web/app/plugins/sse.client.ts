@@ -1,5 +1,5 @@
 export default defineNuxtPlugin(() => {
-  const { fetchStats, fetchClusters, fetchNewsletters, analyzeAllRunning } = useAppData()
+  const { fetchStats, fetchClusters, fetchNewsletters, fetchCreditStatus, analyzeAllRunning } = useAppData()
   const toast = useToast()
 
   let es: EventSource | null = null
@@ -11,6 +11,7 @@ export default defineNuxtPlugin(() => {
 
     es.onopen = () => {
       reconnectDelay = 1000
+      fetchCreditStatus()
     }
 
     es.addEventListener('newsletter:uploaded', () => {
@@ -20,6 +21,7 @@ export default defineNuxtPlugin(() => {
     es.addEventListener('newsletter:analyzed', () => {
       fetchNewsletters()
       fetchStats()
+      fetchCreditStatus()
     })
 
     es.addEventListener('clusters:updated', () => {
@@ -30,11 +32,18 @@ export default defineNuxtPlugin(() => {
     es.addEventListener('analyze-all:done', (e) => {
       const data = JSON.parse(e.data)
       analyzeAllRunning.value = false
+      const skipped = Number(data.skippedDueToCredits ?? 0)
       toast.add({
         title: 'Batch analysis complete',
-        description: `${data.analyzed} analyzed, ${data.failed} failed.`,
-        color: data.failed ? 'warning' : 'success',
+        description: skipped > 0
+          ? `${data.analyzed} analyzed, ${data.failed} failed, ${skipped} skipped (credits).`
+          : `${data.analyzed} analyzed, ${data.failed} failed.`,
+        color: data.failed || skipped > 0 ? 'warning' : 'success',
       })
+    })
+
+    es.addEventListener('credits:updated', () => {
+      fetchCreditStatus()
     })
 
     es.onerror = () => {

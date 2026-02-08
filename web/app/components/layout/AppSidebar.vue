@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import type { CreditStatus } from '#shared/types/credits'
 
 interface Props {
   currentUserEmail?: string | null
+  creditStatus?: CreditStatus | null
 }
 
 const props = defineProps<Props>()
@@ -51,14 +53,7 @@ const secondaryItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Feedback',
     icon: 'i-lucide-message-circle',
-    to: 'https://github.com/nuxt-ui-templates/dashboard',
-    target: '_blank',
-  },
-  {
-    label: 'Help & Support',
-    icon: 'i-lucide-circle-help',
-    to: 'https://github.com/nuxt/ui',
-    target: '_blank',
+    to: 'mailto:?subject=Newsletter%20Mining%20Feedback',
   },
 ])
 
@@ -76,6 +71,20 @@ const profileItems = computed(() => [[
     onSelect: () => emit('logout'),
   },
 ]])
+
+const creditLimit = computed(() => Math.max(Number(props.creditStatus?.limit ?? 50), 1))
+
+const remainingCredits = computed(() => {
+  if (!props.creditStatus) return creditLimit.value
+  return Math.max(Number(props.creditStatus.remaining ?? 0), 0)
+})
+
+const creditCounterLabel = computed(() => `${remainingCredits.value} left`)
+
+const creditProgressColor = computed(() => {
+  if (!props.creditStatus) return 'neutral'
+  return props.creditStatus.exhausted ? 'warning' : 'primary'
+})
 
 function handleSearchClick() {
   toast.add({
@@ -103,22 +112,7 @@ function handleSearchClick() {
     </template>
 
     <template #default="{ collapsed }">
-      <UButton
-        :label="collapsed ? undefined : 'Search...'"
-        icon="i-lucide-search"
-        color="neutral"
-        variant="outline"
-        :block="!collapsed"
-        :square="collapsed"
-        @click="handleSearchClick"
-      >
-        <template v-if="!collapsed" #trailing>
-          <div class="flex items-center gap-0.5 ms-auto">
-            <UKbd value="meta" variant="subtle" />
-            <UKbd value="K" variant="subtle" />
-          </div>
-        </template>
-      </UButton>
+    
 
       <UNavigationMenu
         :collapsed="collapsed"
@@ -136,23 +130,58 @@ function handleSearchClick() {
     </template>
 
     <template #footer="{ collapsed }">
-      <UDropdownMenu :items="profileItems" :content="{ side: collapsed ? 'right' : 'top', align: 'start' }">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          :block="!collapsed"
-          :square="collapsed"
-          class="w-full"
+      <div class="w-full px-1">
+        <UDropdownMenu
+          :items="profileItems"
+          :content="{ side: collapsed ? 'right' : 'top', align: 'start', sideOffset: 8 }"
+          :ui="{ content: 'min-w-64' }"
         >
-          <template #leading>
-            <UAvatar :text="userInitials" size="sm" />
+          <template #content-top>
+            <div class="px-2 pt-2 pb-1">
+              <p v-if="currentUserEmail" class="mb-2 px-1 text-xs font-medium text-[var(--ui-text-toned)]">
+                {{ currentUserEmail }}
+              </p>
+
+              <div class="rounded-md border border-[var(--ui-border)] p-2">
+                <div class="mb-1.5 flex items-center justify-between text-sm">
+                  <span class="inline-flex items-center gap-1.5 font-medium">
+                    <UIcon name="i-lucide-coins" class="size-4" />
+                    Credits
+                  </span>
+                  <span class="font-semibold tabular-nums">{{ creditCounterLabel }}</span>
+                </div>
+
+                <UProgress
+                  :model-value="remainingCredits"
+                  :max="creditLimit"
+                  size="xs"
+                  :color="creditProgressColor"
+                  :ui="{ root: 'rounded-full' }"
+                />
+              </div>
+            </div>
           </template>
 
-          <span v-if="!collapsed" class="truncate text-xs text-gray-600 dark:text-gray-300">
-            {{ currentUserEmail || 'Signed in' }}
-          </span>
-        </UButton>
-      </UDropdownMenu>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :block="!collapsed"
+            :square="collapsed"
+            class="w-full"
+            :avatar="
+            {
+              text: userInitials,
+              size: 'sm',
+            }
+            "
+          >
+            
+            <span v-if="!collapsed" class="truncate text-xs text-gray-600 dark:text-gray-300">
+              {{ currentUserEmail || 'Signed in' }}
+            </span>
+          </UButton>
+        </UDropdownMenu>
+      </div>
     </template>
   </UDashboardSidebar>
 </template>

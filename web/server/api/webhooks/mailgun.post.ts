@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { useDB } from '../../database'
 import { newsletters } from '../../database/schema'
+import { CreditExhaustedError } from '../../services/credits'
 import { parseHtml } from '../../services/parser'
 import { analyzeNewsletterById } from '../../utils/analyze'
 
@@ -64,7 +65,13 @@ export default defineEventHandler(async (event) => {
   }).returning()
 
   // 4. Auto-trigger analysis (fire and forget)
-  analyzeNewsletterById(row.id).catch((err) => {
+  analyzeNewsletterById(row.id, { source: 'mailgun' }).catch((err) => {
+    if (err instanceof CreditExhaustedError) {
+      console.info(
+        `Auto-analysis deferred for newsletter ${row.id}: monthly credits exhausted (remaining ${err.status.remaining}).`,
+      )
+      return
+    }
     console.error(`Auto-analysis failed for newsletter ${row.id}:`, err)
   })
 

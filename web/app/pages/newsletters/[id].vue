@@ -3,18 +3,38 @@ import type { NewsletterDetail } from '#shared/types/newsletter'
 
 const route = useRoute()
 const toast = useToast()
+const { creditStatus, fetchCreditStatus } = useAppData()
 const { data: newsletter, refresh } = await useFetch<NewsletterDetail>(`/api/newsletters/${route.params.id}`)
+await fetchCreditStatus()
 
 const analyzing = ref(false)
+const creditsExhausted = computed(() => (creditStatus.value?.remaining ?? 0) <= 0)
+const creditsLabel = computed(() => {
+  if (!creditStatus.value) return 'Credits'
+  return `${creditStatus.value.remaining} left`
+})
 
 async function triggerAnalysis() {
+  if (creditsExhausted.value) {
+    toast.add({
+      title: 'Monthly credit limit reached',
+      description: 'New analyses are blocked until next monthly reset (UTC).',
+      color: 'warning',
+    })
+    return
+  }
+
   analyzing.value = true
   try {
     await $fetch(`/api/newsletters/${route.params.id}/analyze`, { method: 'POST' })
     await refresh()
+    await fetchCreditStatus()
     toast.add({ title: 'Analysis complete', color: 'success' })
   }
   catch (e: any) {
+    if (e?.statusCode === 402 || e?.data?.data?.code === 'CREDIT_EXHAUSTED') {
+      await fetchCreditStatus()
+    }
     toast.add({ title: 'Analysis failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
   }
   finally {
@@ -37,11 +57,20 @@ async function triggerAnalysis() {
           />
         </template>
         <template #right>
+          <UBadge
+            v-if="creditStatus"
+            :color="creditsExhausted ? 'warning' : 'neutral'"
+            variant="subtle"
+            icon="i-lucide-wallet"
+          >
+            Credits {{ creditsLabel }}
+          </UBadge>
           <UButton
             v-if="!newsletter.analyzed"
             label="Analyze"
             icon="i-lucide-sparkles"
             :loading="analyzing"
+            :disabled="creditsExhausted"
             @click="triggerAnalysis"
           />
           <UBadge v-else color="success" variant="subtle" size="lg">Analyzed</UBadge>

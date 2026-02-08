@@ -2,8 +2,10 @@
   import AppSidebar from '~/components/layout/AppSidebar.vue'
   import { authClient } from '~/lib/auth-client'
 
+  const { creditStatus, fetchCreditStatus } = useAppData()
   const { session } = useAuthSession()
   const currentUser = computed(() => session.value.user)
+  await fetchCreditStatus()
 
   async function logout() {
     await authClient.signOut()
@@ -14,7 +16,11 @@
 
 <template>
   <UDashboardGroup>
-    <AppSidebar :current-user-email="currentUser?.email" @logout="logout" />
+    <AppSidebar
+      :current-user-email="currentUser?.email"
+      :credit-status="creditStatus"
+      @logout="logout"
+    />
 
     <slot />
   </UDashboardGroup>

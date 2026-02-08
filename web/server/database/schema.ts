@@ -4,13 +4,15 @@ import {
   text,
   varchar,
   timestamp,
+  date,
   jsonb,
   integer,
   boolean,
   index,
-  primaryKey,
+  check,
   pgEnum,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 import { vector } from 'drizzle-orm/pg-core'
 
 // --- Enums (matching PRD) ---
@@ -26,6 +28,7 @@ export const categoryEnum = pgEnum('category', [
 ])
 export const trendEnum = pgEnum('trend', ['emerging', 'stable', 'declining'])
 export const sourceTypeEnum = pgEnum('source_type', ['file', 'mailgun'])
+export const analysisCreditStatusEnum = pgEnum('analysis_credit_status', ['reserved', 'consumed', 'released'])
 
 // --- Tables (matching PRD section 3.1 F1.3) ---
 
@@ -82,3 +85,44 @@ export const problemClusters = pgTable('problem_clusters', {
   mentionCount: integer('mention_count').notNull().default(0),
   trend: trendEnum('trend').notNull().default('stable'),
 })
+
+export const analysisCreditMonths = pgTable(
+  'analysis_credit_months',
+  {
+    periodStart: date('period_start').primaryKey(),
+    creditLimit: integer('credit_limit').notNull().default(50),
+    reservedCount: integer('reserved_count').notNull().default(0),
+    consumedCount: integer('consumed_count').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  table => [
+    check('analysis_credit_months_reserved_non_negative', sql`${table.reservedCount} >= 0`),
+    check('analysis_credit_months_consumed_non_negative', sql`${table.consumedCount} >= 0`),
+    check('analysis_credit_months_consumed_within_limit', sql`${table.consumedCount} <= ${table.creditLimit}`),
+    check('analysis_credit_months_total_within_limit', sql`${table.reservedCount} + ${table.consumedCount} <= ${table.creditLimit}`),
+  ],
+)
+
+export const analysisCreditReservations = pgTable(
+  'analysis_credit_reservations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    periodStart: date('period_start')
+      .notNull()
+      .references(() => analysisCreditMonths.periodStart, { onDelete: 'cascade' }),
+    newsletterId: uuid('newsletter_id')
+      .notNull()
+      .references(() => newsletters.id, { onDelete: 'cascade' }),
+    source: text('source').notNull(),
+    status: analysisCreditStatusEnum('status').notNull().default('reserved'),
+    failureReason: text('failure_reason'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    finalizedAt: timestamp('finalized_at', { withTimezone: true }),
+  },
+  table => [
+    index('analysis_credit_reservations_period_status_idx').on(table.periodStart, table.status),
+    index('analysis_credit_reservations_newsletter_status_idx').on(table.newsletterId, table.status),
+    index('analysis_credit_reservations_expires_at_idx').on(table.expiresAt),
+  ],
+)

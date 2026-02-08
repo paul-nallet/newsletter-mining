@@ -2,8 +2,9 @@
   import { refDebounced, useInfiniteScroll } from '@vueuse/core'
   import type { NewsletterListItem, NewsletterPageResponse } from '#shared/types/newsletter'
 
-  const { analyzeAllRunning } = useAppData()
+  const { analyzeAllRunning, creditStatus, fetchCreditStatus } = useAppData()
   const toast = useToast()
+  await fetchCreditStatus()
 
   type AnalyzedFilter = 'all' | 'yes' | 'no'
   type SourceFilter = 'all' | 'file' | 'email'
@@ -22,13 +23,13 @@
 
   const typeOptions = [
     { label: 'Type: All', value: 'all' },
-    { label: 'Type: Fichier', value: 'file' },
+    { label: 'Type: File', value: 'file' },
     { label: 'Type: Email', value: 'email' },
   ] as const
 
   const sortOptions = [
-    { label: 'Date: Plus récentes', value: 'desc' },
-    { label: 'Date: Plus anciennes', value: 'asc' },
+    { label: 'Date: Newest first', value: 'desc' },
+    { label: 'Date: Oldest first', value: 'asc' },
   ] as const
 
   const pageSize = 5
@@ -45,6 +46,11 @@
   const hasMore = computed(() => nextOffset.value !== null)
   const resultCount = computed(() => totalCount.value)
   const pendingCount = computed(() => pendingTotal.value)
+  const creditsExhausted = computed(() => (creditStatus.value?.remaining ?? 0) <= 0)
+  const creditsLabel = computed(() => {
+    if (!creditStatus.value) return 'Credits'
+    return `Credits ${creditStatus.value.remaining} left`
+  })
   const isEmptyState = computed(() => !loadingInitial.value && !loadError.value && rows.value.length === 0)
 
   const fileInput = ref<HTMLInputElement>()
@@ -79,6 +85,15 @@
   const analyzing = ref<string | null>(null)
 
   async function triggerAnalysis(id: string) {
+    if (creditsExhausted.value) {
+      toast.add({
+        title: 'Monthly credit limit reached',
+        description: 'New analyses are blocked until next monthly reset (UTC).',
+        color: 'warning',
+      })
+      return
+    }
+
     analyzing.value = id
     try {
       await $fetch(`/api/newsletters/${id}/analyze`, { method: 'POST' })
@@ -86,6 +101,9 @@
       await fetchPage({ reset: true })
     }
     catch (e: any) {
+      if (e?.statusCode === 402 || e?.data?.data?.code === 'CREDIT_EXHAUSTED') {
+        await fetchCreditStatus()
+      }
       toast.add({ title: 'Analysis failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
     }
     finally {
@@ -94,6 +112,15 @@
   }
 
   async function triggerAnalyzeAll() {
+    if (creditsExhausted.value) {
+      toast.add({
+        title: 'Monthly credit limit reached',
+        description: 'Batch analysis is blocked until next monthly reset (UTC).',
+        color: 'warning',
+      })
+      return
+    }
+
     analyzeAllRunning.value = true
     try {
       const result = await $fetch('/api/newsletters/analyze-all', { method: 'POST' })
@@ -104,6 +131,9 @@
       // If started, loading state clears when analyze-all:done SSE event arrives
     }
     catch (e: any) {
+      if (e?.statusCode === 402 || e?.data?.data?.code === 'CREDIT_EXHAUSTED') {
+        await fetchCreditStatus()
+      }
       toast.add({ title: 'Batch analysis failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
       analyzeAllRunning.value = false
     }
@@ -178,6 +208,7 @@
   watch(analyzeAllRunning, (value, oldValue) => {
     if (oldValue && !value) {
       fetchPage({ reset: true })
+      fetchCreditStatus()
     }
   })
 
@@ -203,9 +234,18 @@
     <template #header>
       <UDashboardNavbar title="Newsletters">
         <template #right>
+          <UBadge
+            v-if="creditStatus"
+            :color="creditsExhausted ? 'warning' : 'neutral'"
+            variant="subtle"
+            icon="i-lucide-wallet"
+            class="hidden sm:inline-flex"
+          >
+            {{ creditsLabel }}
+          </UBadge>
           <input ref="fileInput" type="file" accept=".html,.htm,.txt,.eml" class="hidden" @change="handleFileUpload">
           <UButton v-if="pendingCount > 0" icon="i-lucide-sparkles" :label="`Analyze All (${pendingCount})`"
-            variant="soft" :loading="analyzeAllRunning" @click="triggerAnalyzeAll" />
+            variant="soft" :loading="analyzeAllRunning" :disabled="creditsExhausted" @click="triggerAnalyzeAll" />
           <UButton icon="i-lucide-upload" label="Upload" :loading="uploading" @click="openFileDialog" />
         </template>
       </UDashboardNavbar>
@@ -218,22 +258,22 @@
           <USelect v-model="filterType" :items="typeOptions" value-key="value" label-key="label" class="w-36" />
           <USelect v-model="sortDate" :items="sortOptions" value-key="value" label-key="label" class="w-44" />
           <div class="ms-auto text-xs text-[var(--ui-text-dimmed)]">
-            {{ resultCount }} résultat{{ resultCount > 1 ? 's' : '' }}
+            {{ resultCount }} result{{ resultCount !== 1 ? 's' : '' }}
           </div>
         </div>
 
         <UCard v-else variant="subtle">
           <div class="py-12 text-center">
             <UIcon name="i-lucide-mail-x" class="mx-auto mb-3 size-10 opacity-50" />
-            <p class="font-medium">Aucune newsletter pour le moment</p>
+            <p class="font-medium">No newsletters yet</p>
             <p class="mt-1 text-sm text-[var(--ui-text-dimmed)]">
-              Importe une premiere newsletter pour lancer l'analyse.
+              Upload your first newsletter to get started.
             </p>
             <UFileUpload
               class="mx-auto mt-4 w-full max-w-md min-h-32"
               accept=".html,.htm,.txt,.eml"
-              label="Glisse ta newsletter ici"
-              description="ou clique pour selectionner un fichier (.html, .txt, .eml)"
+              label="Drag your newsletter here"
+              description="or click to select a file (.html, .txt, .eml)"
               :disabled="uploading"
               @change="handleFileUpload"
             />
@@ -251,6 +291,7 @@
           <NewsletterRowCard 
               :newsletter="item" 
               :analyzing="analyzing"
+              :credits-exhausted="creditsExhausted"
               @trigger-analysis="triggerAnalysis"
           />
         </UScrollArea>

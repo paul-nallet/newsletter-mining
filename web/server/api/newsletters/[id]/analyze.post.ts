@@ -1,5 +1,6 @@
 import { analyzeNewsletterById } from '../../../utils/analyze'
 import { generateClusters, enrichClusterSummaries } from '../../../services/clustering'
+import { CreditExhaustedError } from '../../../services/credits'
 import { emitAppEvent } from '../../../utils/eventBus'
 
 export default defineEventHandler(async (event) => {
@@ -7,7 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing id' })
 
   try {
-    const result = await analyzeNewsletterById(id)
+    const result = await analyzeNewsletterById(id, { source: 'manual' })
 
     emitAppEvent('newsletter:analyzed', { id, problemCount: result.problemCount })
 
@@ -17,6 +18,16 @@ export default defineEventHandler(async (event) => {
     return { newsletterId: id, ...result }
   }
   catch (err: any) {
+    if (err instanceof CreditExhaustedError) {
+      throw createError({
+        statusCode: 402,
+        statusMessage: 'Monthly credit limit reached',
+        data: {
+          code: err.code,
+          creditStatus: err.status,
+        },
+      })
+    }
     if (err.message?.includes('not found')) {
       throw createError({ statusCode: 404, statusMessage: err.message })
     }
