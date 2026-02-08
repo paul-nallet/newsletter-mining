@@ -72,10 +72,13 @@ async function resetDatabase() {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto">
-    <UDashboardNavbar title="Settings" />
+  <UDashboardPanel>
+    <template #header>
+      <UDashboardNavbar title="Settings" />
+    </template>
+    <template #body>
 
-    <div class="p-6 space-y-6">
+    <div class="space-y-6">
       <!-- Clustering -->
       <UCard>
         <template #header>
@@ -224,5 +227,6 @@ async function resetDatabase() {
         </div>
       </template>
     </UModal>
-  </div>
+    </template>
+  </UDashboardPanel>
 </template>

@@ -1,7 +1,31 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-@theme {
-  --font-sans: 'Satoshi', system-ui, sans-serif;
 
+@theme static {
+ --color-amulet-50: #f4f7f2;
+  --color-amulet-100: #e5ecdf;
+  --color-amulet-200: #cbd9c1;
+  --color-amulet-300: #a5bd98;
+  --color-amulet-400: #87a679;
+  --color-amulet-500: #597f4a;
+  --color-amulet-600: #436437;
+  --color-amulet-700: #34502c;
+  --color-amulet-800: #2b4025;
+  --color-amulet-900: #24351f;
+  --color-amulet-950: #131e10;
+
+}
+@theme {
+  --font-sans: 'Poppins', sans-serif;
+
+}
+
+:root {
+  --ui-radius: 0.25rem;
+  --ui-primary: black;
+}
+
+.dark {
+  --ui-primary: white;
 }

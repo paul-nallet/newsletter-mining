@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import type { NewsletterDetail } from '#shared/types/newsletter'
 import { useDB } from '../../database'
 import { newsletters, problems } from '../../database/schema'
 
@@ -34,5 +35,6 @@ export default defineEventHandler(async (event) => {
     .from(problems)
     .where(eq(problems.newsletterId, id))
 
-  return { ...newsletter, problems: newsletterProblems }
+  const response: NewsletterDetail = { ...newsletter, problems: newsletterProblems }
+  return response
 })

@@ -1,11 +1,65 @@
-import { desc, count, eq } from 'drizzle-orm'
+import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { getQuery } from 'h3'
+import type { NewsletterListItem, NewsletterPageResponse } from '#shared/types/newsletter'
 import { useDB } from '../../database'
 import { newsletters, problems } from '../../database/schema'
 
-export default defineEventHandler(async () => {
-  const db = useDB()
+function parsePositiveInt(value: unknown, fallback: number) {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback
+  return parsed
+}
 
-  const rows = await db
+export default defineEventHandler(async (event) => {
+  const db = useDB()
+  const query = getQuery(event)
+
+  const q = typeof query.q === 'string' ? query.q.trim() : ''
+  const analyzed = query.analyzed === 'yes' || query.analyzed === 'no' || query.analyzed === 'all'
+    ? query.analyzed
+    : 'all'
+  const source = query.source === 'file' || query.source === 'email' || query.source === 'all'
+    ? query.source
+    : 'all'
+  const sort = query.sort === 'asc' || query.sort === 'desc'
+    ? query.sort
+    : 'desc'
+  const limit = Math.min(parsePositiveInt(query.limit, 0), 100)
+  const offset = parsePositiveInt(query.offset, 0)
+  const isPaginated = limit > 0
+
+  const whereParts = []
+
+  if (q) {
+    const pattern = `%${q}%`
+    whereParts.push(
+      or(
+        ilike(newsletters.subject, pattern),
+        ilike(newsletters.fromName, pattern),
+        ilike(newsletters.fromEmail, pattern),
+      ),
+    )
+  }
+
+  if (analyzed === 'yes') whereParts.push(eq(newsletters.analyzed, true))
+  if (analyzed === 'no') whereParts.push(eq(newsletters.analyzed, false))
+  if (source === 'file') whereParts.push(eq(newsletters.sourceType, 'file'))
+  if (source === 'email') whereParts.push(eq(newsletters.sourceType, 'mailgun'))
+
+  const whereClause = whereParts.length ? and(...whereParts) : undefined
+  const primaryOrder = sort === 'asc' ? asc(newsletters.receivedAt) : desc(newsletters.receivedAt)
+  const secondaryOrder = sort === 'asc' ? asc(newsletters.id) : desc(newsletters.id)
+
+  const problemCounts = db
+    .select({
+      newsletterId: problems.newsletterId,
+      problemCount: count(problems.id).as('problem_count'),
+    })
+    .from(problems)
+    .groupBy(problems.newsletterId)
+    .as('problem_counts')
+
+  const baseQuery = db
     .select({
       id: newsletters.id,
       subject: newsletters.subject,
@@ -16,16 +70,43 @@ export default defineEventHandler(async () => {
       analyzedAt: newsletters.analyzedAt,
       sourceType: newsletters.sourceType,
       sourceVertical: newsletters.sourceVertical,
-      problemCount: count(problems.id),
+      problemCount: sql<number>`coalesce(${problemCounts.problemCount}, 0)`.as('problem_count'),
     })
     .from(newsletters)
-    .leftJoin(problems, eq(problems.newsletterId, newsletters.id))
-    .groupBy(newsletters.id)
-    .orderBy(desc(newsletters.receivedAt))
+    .leftJoin(problemCounts, eq(problemCounts.newsletterId, newsletters.id))
+    .orderBy(primaryOrder, secondaryOrder)
 
-  return rows.map(row => ({
+  const rows = await (whereClause ? baseQuery.where(whereClause) : baseQuery)
+    .limit(isPaginated ? limit : undefined)
+    .offset(isPaginated ? offset : undefined)
+
+  const normalizedRows: NewsletterListItem[] = rows.map(row => ({
     ...row,
-    // postgres count can come as string depending on driver; normalize for UI
     problemCount: Number(row.problemCount ?? 0),
   }))
+
+  if (!isPaginated) {
+    return normalizedRows
+  }
+
+  const totalQuery = db.select({ total: count() }).from(newsletters)
+  const [totalRow] = await (whereClause ? totalQuery.where(whereClause) : totalQuery)
+  const pendingQuery = db.select({ total: count() }).from(newsletters).where(eq(newsletters.analyzed, false))
+  const [pendingRow] = await pendingQuery
+  const total = Number(totalRow?.total ?? 0)
+  const pendingTotal = Number(pendingRow?.total ?? 0)
+  const nextOffset = offset + normalizedRows.length
+  const hasMore = nextOffset < total
+
+  const response: NewsletterPageResponse = {
+    items: normalizedRows,
+    total,
+    pendingTotal,
+    limit,
+    offset,
+    nextOffset: hasMore ? nextOffset : null,
+    hasMore,
+  }
+
+  return response
 })
