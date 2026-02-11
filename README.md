@@ -46,7 +46,7 @@ uv run python -m newsletter_mining report
 cd web
 npm install
 
-# Generate Better Auth SQL migration (separate from Drizzle business schema)
+# Optional: regenerate Better Auth SQL (only when auth config changes)
 npm run auth:generate
 
 # Apply Better Auth migrations
@@ -58,6 +58,23 @@ npm run db:migrate
 # Run app
 npm run dev
 ```
+
+### Production migration order
+
+Production uses the SQL migration stack in `/app/server/database/migrations` via `/app/db-migrate.sh`.
+Do not rely on `better-auth migrate` alone in production.
+
+If Stripe callback fails with `column "cancelAt" does not exist`, run this hotfix immediately:
+
+```sql
+ALTER TABLE "subscription" ADD COLUMN IF NOT EXISTS "cancelAt" timestamp with time zone;
+ALTER TABLE "subscription" ADD COLUMN IF NOT EXISTS "canceledAt" timestamp with time zone;
+ALTER TABLE "subscription" ADD COLUMN IF NOT EXISTS "endedAt" timestamp with time zone;
+ALTER TABLE "subscription" ALTER COLUMN "status" SET DEFAULT 'incomplete';
+UPDATE "subscription" SET "status" = 'incomplete' WHERE "status" IS NULL;
+```
+
+Then deploy the repository migration files and run `/app/db-migrate.sh` (or start the container with migrations enabled).
 
 ### Auth behavior (MVP)
 
