@@ -20,7 +20,7 @@ EXPOSE 3000
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/server/database/migrations ./server/database/migrations
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
-COPY reset-db.sh ./reset-db.sh
+COPY reset-auth-billing.sh ./reset-auth-billing.sh
 COPY db-migrate.sh ./db-migrate.sh
-RUN chmod +x ./docker-entrypoint.sh ./db-migrate.sh
+RUN chmod +x ./docker-entrypoint.sh ./reset-auth-billing.sh ./db-migrate.sh
 CMD ["./docker-entrypoint.sh"]
