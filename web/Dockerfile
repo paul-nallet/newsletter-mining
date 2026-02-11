@@ -19,12 +19,7 @@ RUN apk add --no-cache postgresql-client
 EXPOSE 3000
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/server/database/migrations ./server/database/migrations
-COPY --from=build /app/server/database/schema.ts ./server/database/schema.ts
-COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=build /app/package.json ./package.json
-COPY --from=deps /app/node_modules/drizzle-kit ./node_modules/drizzle-kit
-COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-RUN ln -s /app/node_modules/drizzle-kit/bin.cjs /usr/local/bin/drizzle-kit
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x ./docker-entrypoint.sh
+COPY db-migrate.sh ./db-migrate.sh
+RUN chmod +x ./docker-entrypoint.sh ./db-migrate.sh
 CMD ["./docker-entrypoint.sh"]
