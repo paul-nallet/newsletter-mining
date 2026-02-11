@@ -4,16 +4,17 @@ import { CreditExhaustedError } from '../../../services/credits'
 import { emitAppEvent } from '../../../utils/eventBus'
 
 export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing id' })
 
   try {
-    const result = await analyzeNewsletterById(id, { source: 'manual' })
+    const result = await analyzeNewsletterById(id, { source: 'manual', userId })
 
     emitAppEvent('newsletter:analyzed', { id, problemCount: result.problemCount })
 
     // Fire-and-forget: cluster regen in background
-    regenerateClustersBackground()
+    regenerateClustersBackground(userId)
 
     return { newsletterId: id, ...result }
   }
@@ -35,9 +36,9 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-function regenerateClustersBackground() {
-  generateClusters()
-    .then((result) => enrichClusterSummaries().then(() => result))
+function regenerateClustersBackground(userId: string) {
+  generateClusters(userId)
+    .then((result) => enrichClusterSummaries(userId).then(() => result))
     .then((result) => {
       if (result) {
         emitAppEvent('clusters:updated', { totalClusters: result.totalClusters, totalProblems: result.totalProblems })

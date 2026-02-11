@@ -1,8 +1,9 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { useDB } from '../../database'
 import { problemClusters, problems, newsletters } from '../../database/schema'
 
 export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing id' })
 
@@ -11,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const [cluster] = await db
     .select()
     .from(problemClusters)
-    .where(eq(problemClusters.id, id))
+    .where(and(eq(problemClusters.id, id), eq(problemClusters.userId, userId)))
 
   if (!cluster) {
     throw createError({ statusCode: 404, statusMessage: 'Cluster not found' })

@@ -15,6 +15,15 @@ cp .env.example .env
 uv sync
 ```
 
+### Environment variables
+
+- `OPENAI_API_KEY`
+- `MAILGUN_WEBHOOK_SIGNING_KEY`
+- `DATABASE_URL`
+- `CLUSTER_SIMILARITY_THRESHOLD` (default `0.78`, lower = broader clusters, higher = stricter clusters)
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+
 ## Usage
 
 ```bash

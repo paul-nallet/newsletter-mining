@@ -17,13 +17,13 @@ const route = useRoute()
 
 function isRouteActive(path: string) {
   if (path === '/app') {
-    return route.path === '/app' || route.path.startsWith('/clusters')
+    return route.path === '/app' || route.path.startsWith('/app/clusters')
   }
-  if (path === '/newsletters') {
-    return route.path.startsWith('/newsletters')
+  if (path === '/app/newsletters') {
+    return route.path.startsWith('/app/newsletters')
   }
-  if (path === '/settings') {
-    return route.path.startsWith('/settings')
+  if (path === '/app/settings') {
+    return route.path.startsWith('/app/settings')
   }
   return route.path === path
 }
@@ -38,14 +38,14 @@ const mainItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Newsletters',
     icon: 'i-lucide-mail',
-    to: '/newsletters',
-    active: isRouteActive('/newsletters'),
+    to: '/app/newsletters',
+    active: isRouteActive('/app/newsletters'),
   },
   {
     label: 'Settings',
     icon: 'i-lucide-settings',
-    to: '/settings',
-    active: isRouteActive('/settings'),
+    to: '/app/settings',
+    active: isRouteActive('/app/settings'),
   },
 ])
 

@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 // PRD Section 5.1 - Extraction prompt
 const SYSTEM_PROMPT = `You are an expert analyst specializing in identifying problems, pain points, and unmet needs mentioned in newsletters and articles.
 
-Analyze the following newsletter content and extract all mentioned problems, frustrations, or unmet needs.
+Analyze the following newsletter content (provided as structured markdown with headings, lists, and links) and extract all mentioned problems, frustrations, or unmet needs.
 
 # Your Task
 Extract every instance where:
@@ -53,7 +53,7 @@ export interface AnalysisResponse {
 const MODEL = 'gpt-4o'
 
 export async function analyzeNewsletter(
-  textBody: string,
+  markdownBody: string,
   subject: string,
   fromName: string,
   date: string,
@@ -61,13 +61,13 @@ export async function analyzeNewsletter(
   const config = useRuntimeConfig()
   const client = new OpenAI({ apiKey: config.openaiApiKey })
 
-  const userMessage = `# Newsletter Content
+  const userMessage = `# Newsletter Markdown Content
 
 Newsletter: ${subject || 'Unknown'}
 Author: ${fromName || 'Unknown'}
 Date: ${date || 'Unknown'}
 
-${textBody.slice(0, 15000)}`
+${markdownBody.slice(0, 15000)}`
 
   let lastError: Error | null = null
 

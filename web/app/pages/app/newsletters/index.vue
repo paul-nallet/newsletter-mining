@@ -1,11 +1,18 @@
 <script setup lang="ts">
-  import { refDebounced, useInfiniteScroll } from '@vueuse/core'
+  import { refDebounced, useInfiniteScroll, useMediaQuery } from '@vueuse/core'
   import type { NewsletterListItem, NewsletterPageResponse } from '#shared/types/newsletter'
 
   const { analyzeAllRunning, creditStatus, fetchCreditStatus } = useAppData()
   const toast = useToast()
   await fetchCreditStatus()
 
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+
+  // --- Selection ---
+  const { selectedIds, selectionMode, selectedCount, toggle: toggleCheck, selectAll, clearSelection, isSelected } = useNewsletterSelection()
+  const selectedId = ref<string | null>(null)
+
+  // --- Filters ---
   type AnalyzedFilter = 'all' | 'yes' | 'no'
   type SourceFilter = 'all' | 'file' | 'email'
   type SortOrder = 'desc' | 'asc'
@@ -32,7 +39,8 @@
     { label: 'Date: Oldest first', value: 'asc' },
   ] as const
 
-  const pageSize = 5
+  // --- Pagination ---
+  const pageSize = 20
   const scrollArea = useTemplateRef('scrollArea')
   const rows = ref<NewsletterListItem[]>([])
   const totalCount = ref(0)
@@ -53,6 +61,7 @@
   })
   const isEmptyState = computed(() => !loadingInitial.value && !loadError.value && rows.value.length === 0)
 
+  // --- Upload ---
   const fileInput = ref<HTMLInputElement>()
   const uploading = ref(false)
 
@@ -82,6 +91,7 @@
     }
   }
 
+  // --- Analyze ---
   const analyzing = ref<string | null>(null)
 
   async function triggerAnalysis(id: string) {
@@ -128,7 +138,6 @@
         toast.add({ title: 'Nothing to analyze', description: 'All newsletters are already analyzed.', color: 'neutral' })
         analyzeAllRunning.value = false
       }
-      // If started, loading state clears when analyze-all:done SSE event arrives
     }
     catch (e: any) {
       if (e?.statusCode === 402 || e?.data?.data?.code === 'CREDIT_EXHAUSTED') {
@@ -139,6 +148,55 @@
     }
   }
 
+
+  const archiving = ref<boolean>(false)
+async function triggerArchive() {
+  archiving.value = true
+  try {
+    await $fetch('/api/newsletters/archive', { method: 'POST', body: { ids: [selectedId.value] } })
+    toast.add({ title: 'Newsletter archived', color: 'success' })
+    handleArchived()
+  }
+  catch (e: any) {
+    toast.add({ title: 'Archive failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
+  }
+  finally {
+    archiving.value = false
+  }
+}
+
+  // --- Bulk actions ---
+  const archivingBulk = ref(false)
+
+  async function archiveSelected() {
+    const ids = [...selectedIds.value]
+    if (!ids.length) return
+
+    archivingBulk.value = true
+    try {
+      const result = await $fetch('/api/newsletters/archive', { method: 'POST', body: { ids } })
+      toast.add({ title: `${result.archived} newsletter${result.archived !== 1 ? 's' : ''} archived`, color: 'success' })
+      clearSelection()
+      selectedId.value = null
+      await fetchPage({ reset: true })
+    }
+    catch (e: any) {
+      toast.add({ title: 'Archive failed', description: e?.data?.statusMessage || e?.message || 'Unknown error', color: 'error' })
+    }
+    finally {
+      archivingBulk.value = false
+    }
+  }
+
+  async function analyzeSelected() {
+    const ids = [...selectedIds.value]
+    for (const id of ids) {
+      await triggerAnalysis(id)
+    }
+    clearSelection()
+  }
+
+  // --- Data fetching ---
   async function fetchPage(options: { reset?: boolean } = {}) {
     const reset = options.reset ?? false
     const currentOffset = reset ? 0 : nextOffset.value
@@ -196,11 +254,6 @@
     }
   }
 
-  function retryLoad() {
-    loadError.value = null
-    fetchPage({ reset: rows.value.length === 0 })
-  }
-
   watch([debouncedSearchQuery, filterAnalyzed, filterType, sortDate], () => {
     fetchPage({ reset: true })
   }, { immediate: true })
@@ -227,12 +280,36 @@
       },
     )
   })
+
+  // --- Row interactions ---
+  function handleRowSelect(id: string) {
+    if (selectionMode.value) {
+      toggleCheck(id)
+      return
+    }
+    if (isDesktop.value) {
+      selectedId.value = selectedId.value === id ? null : id
+    }
+    else {
+      navigateTo(`/newsletters/${id}`)
+    }
+  }
+
+  function handleArchived() {
+    selectedId.value = null
+    fetchPage({ reset: true })
+  }
+
+  function handleSelectAll() {
+    selectAll(rows.value.map(r => r.id))
+  }
 </script>
 
 <template>
-  <UDashboardPanel>
+  <!-- List Panel -->
+  <UDashboardPanel id="newsletter-list" :width="440" resizable>
     <template #header>
-      <UDashboardNavbar title="Newsletters">
+      <UDashboardNavbar title="Inbox">
         <template #right>
           <UBadge
             v-if="creditStatus"
@@ -252,49 +329,141 @@
     </template>
 
     <template #body>
-        <div v-if="!isEmptyState" class="flex flex-wrap items-center gap-2">
-          <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="Search subject or sender..." class="w-64" />
-          <USelect v-model="filterAnalyzed" :items="analyzedOptions" value-key="value" label-key="label" class="w-40" />
-          <USelect v-model="filterType" :items="typeOptions" value-key="value" label-key="label" class="w-36" />
-          <USelect v-model="sortDate" :items="sortOptions" value-key="value" label-key="label" class="w-44" />
-          <div class="ms-auto text-xs text-[var(--ui-text-dimmed)]">
-            {{ resultCount }} result{{ resultCount !== 1 ? 's' : '' }}
-          </div>
+      <!-- Bulk action bar -->
+      <div v-if="selectionMode" class="flex items-center gap-2 mb-3">
+        <UBadge color="primary" variant="subtle">{{ selectedCount }} selected</UBadge>
+        <UButton
+          label="Analyze"
+          icon="i-lucide-sparkles"
+          size="xs"
+          variant="soft"
+          :disabled="creditsExhausted"
+          @click="analyzeSelected"
+        />
+        <UButton
+          label="Archive"
+          icon="i-lucide-archive"
+          size="xs"
+          variant="soft"
+          color="neutral"
+          :loading="archivingBulk"
+          @click="archiveSelected"
+        />
+        <UButton
+          label="Select All"
+          size="xs"
+          variant="ghost"
+          @click="handleSelectAll"
+        />
+        <UButton
+          label="Cancel"
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          @click="clearSelection"
+        />
+      </div>
+
+      <!-- Filters -->
+      <div v-else-if="!isEmptyState" class="flex flex-wrap items-center gap-2">
+        <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="Search subject or sender..." class="w-64" />
+        <USelect v-model="filterAnalyzed" :items="analyzedOptions" value-key="value" label-key="label" class="w-40" />
+        <USelect v-model="filterType" :items="typeOptions" value-key="value" label-key="label" class="w-36" />
+        <USelect v-model="sortDate" :items="sortOptions" value-key="value" label-key="label" class="w-44" />
+        <div class="ms-auto text-xs text-[var(--ui-text-dimmed)]">
+          {{ resultCount }} result{{ resultCount !== 1 ? 's' : '' }}
         </div>
+      </div>
 
-        <UCard v-else variant="subtle">
-          <div class="py-12 text-center">
-            <UIcon name="i-lucide-mail-x" class="mx-auto mb-3 size-10 opacity-50" />
-            <p class="font-medium">No newsletters yet</p>
-            <p class="mt-1 text-sm text-[var(--ui-text-dimmed)]">
-              Upload your first newsletter to get started.
-            </p>
-            <UFileUpload
-              class="mx-auto mt-4 w-full max-w-md min-h-32"
-              accept=".html,.htm,.txt,.eml"
-              label="Drag your newsletter here"
-              description="or click to select a file (.html, .txt, .eml)"
-              :disabled="uploading"
-              @change="handleFileUpload"
-            />
-          </div>
-        </UCard>
-
-        <UScrollArea
-          v-if="!isEmptyState"
-          ref="scrollArea"
-          v-slot="{ item }"
-          :items="rows"
-          :virtualize="{ estimateSize: 88, gap: 16, lanes:1,}"
-          class="p-px"
-        >
-          <NewsletterRowCard 
-              :newsletter="item" 
-              :analyzing="analyzing"
-              :credits-exhausted="creditsExhausted"
-              @trigger-analysis="triggerAnalysis"
+      <!-- Empty state -->
+      <UCard v-if="isEmptyState" variant="subtle">
+        <div class="py-12 text-center">
+          <UIcon name="i-lucide-mail-x" class="mx-auto mb-3 size-10 opacity-50" />
+          <p class="font-medium">No newsletters yet</p>
+          <p class="mt-1 text-sm text-[var(--ui-text-dimmed)]">
+            Upload your first newsletter to get started.
+          </p>
+          <UFileUpload
+            class="mx-auto mt-4 w-full max-w-md min-h-32"
+            accept=".html,.htm,.txt,.eml"
+            label="Drag your newsletter here"
+            description="or click to select a file (.html, .txt, .eml)"
+            :disabled="uploading"
+            @change="handleFileUpload"
           />
-        </UScrollArea>
+        </div>
+      </UCard>
+
+      <!-- Newsletter list -->
+      <UScrollArea
+        v-if="!isEmptyState"
+        ref="scrollArea"
+        v-slot="{ item }"
+        :items="rows"
+        :virtualize="{ estimateSize: 88, gap: 16, lanes: 1 }"
+        class="p-px"
+      >
+        <NewsletterRowCard
+          :newsletter="item"
+          :analyzing="analyzing"
+          :credits-exhausted="creditsExhausted"
+          :checked="isSelected(item.id)"
+          :active="selectedId === item.id"
+          :selection-mode="selectionMode"
+          @trigger-analysis="triggerAnalysis"
+          @select="handleRowSelect"
+          @toggle-check="toggleCheck"
+        />
+      </UScrollArea>
+    </template>
+  </UDashboardPanel>
+
+  <!-- Detail Panel (desktop only) -->
+  <UDashboardPanel grow 
+    v-if="isDesktop && selectedId"
+    id="newsletter-detail"
+  >
+    <template #header>
+      <UDashboardNavbar v-if="selectedId" :title="rows.find(r => r.id === selectedId)?.subject || 'Newsletter Detail'" >
+        <template #right>
+            <UButton
+              v-if="!rows.find(r => r.id === selectedId)?.analyzed"
+              label="Analyze"
+              icon="i-lucide-sparkles"
+              size="sm"
+              :loading="analyzing === selectedId"
+              :disabled="creditsExhausted"
+              @click="triggerAnalysis(selectedId)"
+            />
+            <UBadge v-else color="success" variant="subtle" size="sm">Analyzed</UBadge>
+            <UButton
+              icon="i-lucide-archive"
+              size="sm"
+              variant="soft"
+              color="neutral"
+              :loading="archiving === selectedId"
+              @click="triggerArchive(selectedId)"
+            />
+        </template>
+        
+      </UDashboardNavbar>
+    </template>
+    <template #body>
+      <Suspense v-if="selectedId" :key="selectedId">
+        <NewsletterDetailPane
+          :newsletter-id="selectedId"
+          @archived="handleArchived"
+        />
+        <template #fallback>
+          <div class="flex items-center justify-center h-full">
+            <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-[var(--ui-text-dimmed)]" />
+          </div>
+        </template>
+      </Suspense>
+      <div v-else class="flex flex-col items-center justify-center h-full text-[var(--ui-text-dimmed)] gap-2">
+        <UIcon name="i-lucide-mail-open" class="size-10 opacity-40" />
+        <p class="text-sm">Select a newsletter to read</p>
+      </div>
     </template>
   </UDashboardPanel>
 </template>

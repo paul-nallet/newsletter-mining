@@ -1,7 +1,8 @@
-import { count, eq } from 'drizzle-orm'
+import { and, count, eq } from 'drizzle-orm'
 import { useDB } from '../database'
-import { newsletters, problems } from '../database/schema'
+import { newsletters, problems, userProfiles } from '../database/schema'
 import { analyzeNewsletter } from '../services/analyzer'
+import { generateClusters, enrichClusterSummaries } from '../services/clustering'
 import type { AnalysisCreditSource } from '../services/credits'
 import {
   finalizeCreditReservationFailure,
@@ -12,14 +13,14 @@ import { generateEmbeddingsBatch } from '../services/embeddings'
 
 export async function analyzeNewsletterById(
   id: string,
-  options: { source: AnalysisCreditSource },
+  options: { source: AnalysisCreditSource, userId: string },
 ): Promise<{ problemCount: number }> {
   const db = useDB()
 
   const [newsletter] = await db
     .select()
     .from(newsletters)
-    .where(eq(newsletters.id, id))
+    .where(and(eq(newsletters.id, id), eq(newsletters.userId, options.userId)))
 
   if (!newsletter) {
     throw new Error(`Newsletter ${id} not found`)
@@ -36,6 +37,7 @@ export async function analyzeNewsletterById(
 
   const reservation = await reserveCredit({
     newsletterId: id,
+    userId: options.userId,
     source: options.source,
   })
 
@@ -51,7 +53,7 @@ export async function analyzeNewsletterById(
   let analysis
   try {
     analysis = await analyzeNewsletter(
-      newsletter.textBody,
+      newsletter.markdownBody,
       newsletter.subject || '',
       newsletter.fromName || '',
       newsletter.receivedAt?.toISOString() || '',
@@ -64,7 +66,10 @@ export async function analyzeNewsletterById(
 
   // 2. Generate embeddings for all problems
   const texts = analysis.extracted_problems.map(
-    p => `${p.problem_summary}. ${p.problem_detail}`,
+    (p) => {
+      const summary = p.problem_summary?.trim() || p.problem_detail?.trim() || ''
+      return `${summary}\nCategory: ${p.category}`
+    },
   )
 
   let embeddings: number[][] = []
@@ -84,6 +89,7 @@ export async function analyzeNewsletterById(
       for (let i = 0; i < analysis.extracted_problems.length; i++) {
         const p = analysis.extracted_problems[i]
         await tx.insert(problems).values({
+          userId: options.userId,
           newsletterId: id,
           problemSummary: p.problem_summary,
           problemDetail: p.problem_detail,
@@ -119,6 +125,21 @@ export async function analyzeNewsletterById(
 
   await finalizeCreditReservationSuccess(reservation.reservationId)
   finalized = true
+
+  // Auto-recluster if user has it enabled
+  try {
+    const [profile] = await db
+      .select({ autoRecluster: userProfiles.autoRecluster })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, options.userId))
+    if (profile?.autoRecluster) {
+      await generateClusters(options.userId)
+      await enrichClusterSummaries(options.userId)
+    }
+  }
+  catch (e) {
+    console.warn('[analyze] Auto-recluster failed:', e)
+  }
 
   return { problemCount: insertedCount }
 }

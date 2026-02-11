@@ -79,8 +79,8 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
   />
 </UCard>
     <p class="text-sm text-gray-500 dark:text-gray-400">
-      First setup?
-      <NuxtLink to="/register" class="text-primary-600 dark:text-primary-400 underline">Create the initial account</NuxtLink>
+      Don't have an account?
+      <NuxtLink to="/register" class="text-primary-600 dark:text-primary-400 underline">Sign up</NuxtLink>
     </p>
   </div>
 </template>

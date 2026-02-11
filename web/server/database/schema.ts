@@ -8,10 +8,12 @@ import {
   jsonb,
   integer,
   boolean,
+  real,
   index,
   uniqueIndex,
   check,
   pgEnum,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import { vector } from 'drizzle-orm/pg-core'
@@ -35,20 +37,23 @@ export const analysisCreditStatusEnum = pgEnum('analysis_credit_status', ['reser
 
 export const newsletters = pgTable('newsletters', {
   id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(),
   receivedAt: timestamp('received_at', { withTimezone: true }).defaultNow().notNull(),
   fromEmail: text('from_email').default(''),
   fromName: text('from_name').default(''),
   subject: text('subject').default(''),
-  htmlBody: text('html_body').default(''),
-  textBody: text('text_body').notNull(),
+  markdownBody: text('markdown_body').notNull(),
   analyzed: boolean('analyzed').default(false).notNull(),
   analyzedAt: timestamp('analyzed_at', { withTimezone: true }),
   sourceType: sourceTypeEnum('source_type').notNull().default('file'),
   sourceVertical: varchar('source_vertical', { length: 100 }),
   overallSentiment: text('overall_sentiment'),
   keyTopics: jsonb('key_topics').$type<string[]>().default([]),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
+}, table => [
+  index('newsletters_user_id_idx').on(table.userId),
+])
 
 export const waitlistSignups = pgTable(
   'waitlist_signups',
@@ -71,6 +76,7 @@ export const problems = pgTable(
   'problems',
   {
     id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id').notNull(),
     newsletterId: uuid('newsletter_id')
       .notNull()
       .references(() => newsletters.id, { onDelete: 'cascade' }),
@@ -87,6 +93,7 @@ export const problems = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    index('problems_user_id_idx').on(table.userId),
     index('problems_newsletter_id_idx').on(table.newsletterId),
     index('problems_severity_idx').on(table.severity),
     index('problems_category_idx').on(table.category),
@@ -95,6 +102,7 @@ export const problems = pgTable(
 
 export const problemClusters = pgTable('problem_clusters', {
   id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(),
   clusterName: text('cluster_name').notNull(),
   clusterSummary: text('cluster_summary').default(''),
   problemIds: jsonb('problem_ids').$type<string[]>().default([]),
@@ -102,18 +110,22 @@ export const problemClusters = pgTable('problem_clusters', {
   lastSeen: timestamp('last_seen', { withTimezone: true }).defaultNow().notNull(),
   mentionCount: integer('mention_count').notNull().default(0),
   trend: trendEnum('trend').notNull().default('stable'),
-})
+}, table => [
+  index('problem_clusters_user_id_idx').on(table.userId),
+])
 
 export const analysisCreditMonths = pgTable(
   'analysis_credit_months',
   {
-    periodStart: date('period_start').primaryKey(),
+    userId: text('user_id').notNull(),
+    periodStart: date('period_start').notNull(),
     creditLimit: integer('credit_limit').notNull().default(50),
     reservedCount: integer('reserved_count').notNull().default(0),
     consumedCount: integer('consumed_count').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   table => [
+    primaryKey({ columns: [table.userId, table.periodStart] }),
     check('analysis_credit_months_reserved_non_negative', sql`${table.reservedCount} >= 0`),
     check('analysis_credit_months_consumed_non_negative', sql`${table.consumedCount} >= 0`),
     check('analysis_credit_months_consumed_within_limit', sql`${table.consumedCount} <= ${table.creditLimit}`),
@@ -125,9 +137,8 @@ export const analysisCreditReservations = pgTable(
   'analysis_credit_reservations',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    periodStart: date('period_start')
-      .notNull()
-      .references(() => analysisCreditMonths.periodStart, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull(),
+    periodStart: date('period_start').notNull(),
     newsletterId: uuid('newsletter_id')
       .notNull()
       .references(() => newsletters.id, { onDelete: 'cascade' }),
@@ -144,3 +155,14 @@ export const analysisCreditReservations = pgTable(
     index('analysis_credit_reservations_expires_at_idx').on(table.expiresAt),
   ],
 )
+
+export const userProfiles = pgTable('user_profiles', {
+  userId: text('user_id').primaryKey(),
+  ingestEmail: varchar('ingest_email', { length: 320 }).notNull(),
+  clusterThreshold: real('cluster_threshold').notNull().default(0.78),
+  clusterMinSize: integer('cluster_min_size').notNull().default(2),
+  autoRecluster: boolean('auto_recluster').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex('user_profiles_ingest_email_idx').on(table.ingestEmail),
+])

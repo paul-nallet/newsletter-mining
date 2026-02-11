@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { VisXYContainer, VisScatter, VisAxis, VisTooltip } from '@unovis/vue'
-import { Scale, Scatter } from '@unovis/ts'
-
 interface Cluster {
   id: string
   clusterName: string
@@ -17,102 +14,70 @@ const props = defineProps<{
   clusters: Cluster[]
 }>()
 
-const trendColors: Record<string, string> = {
-  emerging: '#22c55e',
-  stable: '#6b7280',
-  declining: '#ef4444',
+const trendConfig: Record<string, { label: string; color: string; bar: string }> = {
+  emerging: { label: 'Emerging', color: 'text-green-500', bar: 'bg-green-500' },
+  stable: { label: 'Stable', color: 'text-[var(--ui-text-dimmed)]', bar: 'bg-[var(--ui-text-dimmed)]' },
+  declining: { label: 'Declining', color: 'text-red-500', bar: 'bg-red-500' },
 }
 
-interface BubblePoint {
-  id: string
-  name: string
-  summary: string
-  x: number
-  y: number
-  size: number
-  color: string
-  trend: string
-  mentionCount: number
-}
-
-const data = computed<BubblePoint[]>(() =>
-  props.clusters.map(c => ({
-    id: c.id,
-    name: c.clusterName,
-    summary: c.clusterSummary ?? '',
-    x: c.firstSeen ? new Date(c.firstSeen).getTime() : Date.now(),
-    y: c.mentionCount,
-    size: c.problemIds?.length ?? c.mentionCount,
-    color: trendColors[c.trend] ?? trendColors.stable,
-    trend: c.trend,
-    mentionCount: c.mentionCount,
-  })),
+const sorted = computed(() =>
+  [...props.clusters]
+    .sort((a, b) => b.mentionCount - a.mentionCount)
+    .slice(0, 10),
 )
 
-const x = (d: BubblePoint) => d.x
-const y = (d: BubblePoint) => d.y
-const size = (d: BubblePoint) => d.size
-const color = (d: BubblePoint) => d.color
-const label = (d: BubblePoint) => d.name
-
-const xScale = Scale.scaleTime()
-
-const tickFormat = (ts: number) => {
-  const date = new Date(ts)
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-const triggers = {
-  [Scatter.selectors.point]: (d: BubblePoint) => `
-    <div style="max-width:260px;font-size:13px;line-height:1.4">
-      <div style="font-weight:600;margin-bottom:4px">${d.name}</div>
-      <div style="color:#9ca3af;margin-bottom:6px">${d.summary}</div>
-      <div style="display:flex;gap:8px;font-size:12px">
-        <span>${d.mentionCount} mention${d.mentionCount !== 1 ? 's' : ''}</span>
-        <span style="color:${d.color}">${d.trend}</span>
-      </div>
-    </div>
-  `,
-}
-
+const maxMentions = computed(() =>
+  Math.max(...sorted.value.map(c => c.mentionCount), 1),
+)
 </script>
 
 <template>
   <UCard>
     <template #header>
       <div class="flex items-center justify-between">
-        <h3 class="font-semibold text-sm">Cluster Map</h3>
+        <h3 class="font-semibold text-sm">Top Clusters</h3>
         <div class="flex items-center gap-3 text-xs text-[var(--ui-text-dimmed)]">
           <span class="flex items-center gap-1">
-            <span class="inline-block w-2 h-2 rounded-full bg-green-500" /> emerging
+            <span class="inline-block size-2 rounded-full bg-green-500" /> emerging
           </span>
           <span class="flex items-center gap-1">
-            <span class="inline-block w-2 h-2 rounded-full bg-gray-500" /> stable
+            <span class="inline-block size-2 rounded-full bg-[var(--ui-text-dimmed)]" /> stable
           </span>
           <span class="flex items-center gap-1">
-            <span class="inline-block w-2 h-2 rounded-full bg-red-500" /> declining
+            <span class="inline-block size-2 rounded-full bg-red-500" /> declining
           </span>
         </div>
       </div>
     </template>
 
-    <div v-if="data.length" class="h-[350px]">
-      <VisXYContainer :data="data" :xScale="xScale" :yDomainMinConstraint="[0, undefined]">
-        <VisScatter
-          :x="x"
-          :y="y"
-          :size="size"
-          :sizeRange="[20, 60]"
-          :color="color"
-          :label="label"
-          :labelPosition="'bottom'"
-          :labelHideOverlapping="true"
-          cursor="default"
-        />
-        <VisAxis type="x" :tickFormat="tickFormat" :gridLine="false" />
-        <VisAxis type="y" label="Mentions" :gridLine="true" />
-        <VisTooltip :triggers="triggers" />
-      </VisXYContainer>
+    <div v-if="sorted.length" class="space-y-3">
+      <NuxtLink
+        v-for="cluster in sorted"
+        :key="cluster.id"
+        :to="`/app/clusters/${cluster.id}`"
+        class="group flex items-center gap-3"
+      >
+        <!-- Label -->
+        <div class="w-40 shrink-0 text-right">
+          <p class="text-sm truncate group-hover:underline underline-offset-2">
+            {{ cluster.clusterName }}
+          </p>
+        </div>
+
+        <!-- Bar -->
+        <div class="flex-1 flex items-center gap-2">
+          <div class="flex-1 h-6 rounded bg-[var(--ui-bg-elevated)] overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              :class="trendConfig[cluster.trend]?.bar ?? trendConfig.stable.bar"
+              :style="{ width: `${(cluster.mentionCount / maxMentions) * 100}%`, opacity: 0.7 }"
+            />
+          </div>
+          <span class="w-8 text-xs tabular-nums text-right" :class="trendConfig[cluster.trend]?.color">
+            {{ cluster.mentionCount }}
+          </span>
+        </div>
+      </NuxtLink>
     </div>
 
     <div v-else class="text-center py-8 text-[var(--ui-text-dimmed)]">

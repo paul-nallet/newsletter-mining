@@ -30,14 +30,14 @@ export type Newsletter = {
   fromEmail: string | null
   fromName: string | null
   subject: string | null
-  htmlBody: string | null
-  textBody: string
+  markdownBody: string
   analyzed: boolean
   analyzedAt: string | null
   sourceType: NewsletterSourceType
   sourceVertical: string | null
   overallSentiment: string | null
   keyTopics: string[] | null
+  deletedAt: string | null
   createdAt: string
 }
 

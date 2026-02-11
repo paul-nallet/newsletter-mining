@@ -1,6 +1,8 @@
 import { onAppEvent } from '../utils/eventBus'
 
 export default defineEventHandler(async (event) => {
+  await requireAuth(event)
+
   const stream = createEventStream(event)
 
   const unsubscribe = onAppEvent(async (appEvent) => {

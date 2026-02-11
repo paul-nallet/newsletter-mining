@@ -20,7 +20,7 @@ defineProps<{
       <div class="flex items-start justify-between gap-3">
         <div class="flex-1">
           <NuxtLink
-            :to="`/clusters/${cluster.id}`"
+            :to="`/app/clusters/${cluster.id}`"
             class="font-semibold hover:text-primary-500 transition-colors"
           >
             {{ cluster.clusterName }}

@@ -1,20 +1,18 @@
-import { getHeaders, readBody } from 'h3'
-import { usePgClient } from '~~/server/database/client'
+import { eq } from 'drizzle-orm'
+import { readBody } from 'h3'
+import { useDB } from '../../database'
+import {
+  newsletters,
+  problems,
+  problemClusters,
+  analysisCreditMonths,
+  analysisCreditReservations,
+} from '../../database/schema'
 
 const RESET_CONFIRMATION = 'RESET DATABASE'
-const EXCLUDED_TABLES = new Set(['__drizzle_migrations'])
 
 export default defineEventHandler(async (event) => {
-  const session = await auth.api.getSession({
-    headers: new Headers(getHeaders(event) as HeadersInit),
-  })
-
-  if (!session?.user) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-    })
-  }
+  const { userId } = await requireAuth(event)
 
   const body = await readBody<{ confirmation?: string }>(event)
   if (body?.confirmation !== RESET_CONFIRMATION) {
@@ -24,29 +22,18 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const sql = usePgClient()
-  const tableRows = await sql<{ tablename: string }[]>`
-    select tablename
-    from pg_tables
-    where schemaname = 'public'
-    order by tablename asc
-  `
+  const db = useDB()
 
-  const tablesToTruncate = tableRows
-    .map(row => row.tablename)
-    .filter(tableName => !EXCLUDED_TABLES.has(tableName))
+  // Delete user's data in correct order (respecting FK constraints)
+  await db.delete(analysisCreditReservations).where(eq(analysisCreditReservations.userId, userId))
+  await db.delete(analysisCreditMonths).where(eq(analysisCreditMonths.userId, userId))
+  await db.delete(problemClusters).where(eq(problemClusters.userId, userId))
+  await db.delete(problems).where(eq(problems.userId, userId))
+  await db.delete(newsletters).where(eq(newsletters.userId, userId))
 
-  await sql.begin(async (tx) => {
-    for (const tableName of tablesToTruncate) {
-      const escapedTableName = tableName.replace(/"/g, '""')
-      await tx.unsafe(`TRUNCATE TABLE "public"."${escapedTableName}" RESTART IDENTITY CASCADE`)
-    }
-  })
-
-  console.info(`[settings] database reset by ${session.user.email ?? session.user.id}; truncated ${tablesToTruncate.length} tables`)
+  console.info(`[settings] data reset for user ${userId}`)
 
   return {
     success: true,
-    truncatedTables: tablesToTruncate.length,
   }
 })

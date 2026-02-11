@@ -6,11 +6,6 @@ import { authClient } from '~/lib/auth-client'
 definePageMeta({ layout: false })
 
 const toast = useToast()
-const { data: signupState } = await useFetch('/api/auth/signup-open')
-
-if (signupState.value && !signupState.value.isOpen) {
-  await navigateTo('/login')
-}
 
 const schema = z.object({
   name: z.string().min(2, 'Must be at least 2 characters'),
@@ -77,21 +72,14 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 
     
     <UAuthForm
-      v-if="signupState && signupState.isOpen"
-      title="Create initial account"
-      description="Single-user setup: registration closes after first account"
+      title="Create your account"
       :fields="fields"
       class="max-w-md"
       @submit="onSubmit"
     />
-
-    <div v-else class="w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-800 dark:bg-gray-900">
-      <p class="text-sm text-gray-600 dark:text-gray-300">Registration is closed.</p>
-      <UButton to="/login" label="Go to sign in" class="mt-4" />
-    </div>
 </UCard>
     <p class="text-sm text-gray-500 dark:text-gray-400">
-      Already set up?
+      Already have an account?
       <NuxtLink to="/login" class="text-primary-600 dark:text-primary-400 underline">Sign in</NuxtLink>
     </p>
   </div>

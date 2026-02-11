@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
-import { eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 import { useDB } from '../database'
-import { problems, problemClusters } from '../database/schema'
+import { problems, problemClusters, userProfiles } from '../database/schema'
 
 function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0
@@ -47,10 +47,40 @@ Return as JSON:
   "cluster_summary": "..."
 }`
 
-export async function generateClusters(threshold = 0.85) {
+function getClusterSimilarityThreshold(): number {
+  const config = useRuntimeConfig()
+  const parsed = Number(config.clusterSimilarityThreshold)
+  if (Number.isFinite(parsed) && parsed > 0 && parsed <= 1) {
+    return parsed
+  }
+  return 0.78
+}
+
+export async function generateClusters(userId?: string, threshold?: number) {
   const db = useDB()
 
+  // Read per-user settings if userId is provided
+  let userMinSize = 1
+  let effectiveThreshold = threshold ?? getClusterSimilarityThreshold()
+  if (userId && !threshold) {
+    const [profile] = await db
+      .select({ clusterThreshold: userProfiles.clusterThreshold, clusterMinSize: userProfiles.clusterMinSize })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId))
+    if (profile) {
+      effectiveThreshold = profile.clusterThreshold
+      userMinSize = profile.clusterMinSize
+    }
+  }
+
+  console.log(`[clustering] Regenerating clusters for ${userId || 'all users'} with similarity threshold=${effectiveThreshold}`)
+
   // 1. Fetch all problems with embeddings
+  const whereConditions = [isNotNull(problems.embedding)]
+  if (userId) {
+    whereConditions.push(eq(problems.userId, userId))
+  }
+
   const allProblems = await db
     .select({
       id: problems.id,
@@ -60,11 +90,11 @@ export async function generateClusters(threshold = 0.85) {
       createdAt: problems.createdAt,
     })
     .from(problems)
-    .where(isNotNull(problems.embedding))
+    .where(and(...whereConditions))
 
   if (allProblems.length === 0) return
 
-  // 2. Incremental clustering (PRD algorithm: cosine similarity > threshold)
+  // 2. Incremental clustering (PRD algorithm: cosine similarity > configured threshold)
   const groups: { problemIds: string[], embeddings: number[][], firstSeen: Date, lastSeen: Date }[] = []
 
   for (const p of allProblems) {
@@ -85,7 +115,7 @@ export async function generateClusters(threshold = 0.85) {
 
     const createdAt = p.createdAt ?? new Date()
 
-    if (bestSim >= threshold && bestIdx >= 0) {
+    if (bestSim >= effectiveThreshold && bestIdx >= 0) {
       groups[bestIdx].problemIds.push(p.id)
       groups[bestIdx].embeddings.push(emb)
       if (createdAt < groups[bestIdx].firstSeen) groups[bestIdx].firstSeen = createdAt
@@ -101,17 +131,26 @@ export async function generateClusters(threshold = 0.85) {
     }
   }
 
-  // 3. Clear old clusters & persist new ones
-  await db.delete(problemClusters)
+  // 3. Filter by min size
+  const filteredGroups = groups.filter(g => g.problemIds.length >= userMinSize)
+
+  // 4. Clear old clusters for this user & persist new ones
+  if (userId) {
+    await db.delete(problemClusters).where(eq(problemClusters.userId, userId))
+  }
+  else {
+    await db.delete(problemClusters)
+  }
 
   const problemsById = Object.fromEntries(
     allProblems.map(p => [p.id, p]),
   )
 
-  for (const group of groups) {
+  for (const group of filteredGroups) {
     const representative = problemsById[group.problemIds[0]]
 
     await db.insert(problemClusters).values({
+      userId: userId || '',
       clusterName: representative?.problemSummary?.slice(0, 80) || 'Unknown',
       problemIds: group.problemIds,
       firstSeen: group.firstSeen,
@@ -120,18 +159,26 @@ export async function generateClusters(threshold = 0.85) {
     })
   }
 
-  return { totalClusters: groups.length, totalProblems: allProblems.length }
+  return { totalClusters: filteredGroups.length, totalProblems: allProblems.length }
 }
 
-export async function enrichClusterSummaries() {
+export async function enrichClusterSummaries(userId?: string) {
   const config = useRuntimeConfig()
   const client = new OpenAI({ apiKey: config.openaiApiKey })
   const db = useDB()
 
-  const clusters = await db.select().from(problemClusters)
+  const clusterQuery = userId
+    ? db.select().from(problemClusters).where(eq(problemClusters.userId, userId))
+    : db.select().from(problemClusters)
+  const clusters = await clusterQuery
+
+  const problemWhereConditions = userId
+    ? [eq(problems.userId, userId)]
+    : []
   const allProblems = await db
     .select({ id: problems.id, problemSummary: problems.problemSummary, problemDetail: problems.problemDetail })
     .from(problems)
+    .where(problemWhereConditions.length ? and(...problemWhereConditions) : undefined)
 
   const problemsById = Object.fromEntries(allProblems.map(p => [p.id, p]))
 

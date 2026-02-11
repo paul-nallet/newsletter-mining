@@ -20,6 +20,8 @@ if (!DATABASE_URL.includes('_test')) {
 
 const sql = postgres(DATABASE_URL)
 
+const TEST_USER_ID = 'test-user-credits'
+
 function toPeriodStartUTC(date: Date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`
 }
@@ -38,8 +40,8 @@ async function resetCreditsRelatedTables() {
 
 async function createNewsletter(subject: string) {
   const rows = await sql<{ id: string }[]>`
-    INSERT INTO newsletters (subject, text_body, source_type)
-    VALUES (${subject}, ${`body for ${subject}`}, ${'file'})
+    INSERT INTO newsletters (user_id, subject, markdown_body, source_type)
+    VALUES (${TEST_USER_ID}, ${subject}, ${`body for ${subject}`}, ${'file'})
     RETURNING id
   `
 
@@ -80,7 +82,7 @@ describe('credits service', () => {
     const newsletterIds = await createNewsletters(60)
 
     const results = await Promise.allSettled(
-      newsletterIds.map(newsletterId => reserveCredit({ newsletterId, source: 'batch' })),
+      newsletterIds.map(newsletterId => reserveCredit({ newsletterId, userId: TEST_USER_ID, source: 'batch' })),
     )
 
     const fulfilled = results.filter(
@@ -95,7 +97,7 @@ describe('credits service', () => {
     expect(rejected).toHaveLength(10)
     expect(rejected.every(result => result.reason instanceof CreditExhaustedError)).toBe(true)
 
-    const status = await getCreditStatus()
+    const status = await getCreditStatus(TEST_USER_ID)
     expect(status.limit).toBe(50)
     expect(status.consumed).toBe(0)
     expect(status.reserved).toBe(50)
@@ -109,17 +111,19 @@ describe('credits service', () => {
 
     const successReservation = await reserveCredit({
       newsletterId: successNewsletterId,
+      userId: TEST_USER_ID,
       source: 'manual',
     })
     const failedReservation = await reserveCredit({
       newsletterId: failedNewsletterId,
+      userId: TEST_USER_ID,
       source: 'manual',
     })
 
     await finalizeCreditReservationSuccess(successReservation.reservationId)
     await finalizeCreditReservationFailure(failedReservation.reservationId, 'forced_test_failure')
 
-    const status = await getCreditStatus()
+    const status = await getCreditStatus(TEST_USER_ID)
     expect(status.limit).toBe(50)
     expect(status.consumed).toBe(1)
     expect(status.reserved).toBe(0)
@@ -131,15 +135,16 @@ describe('credits service', () => {
     const newsletterId = await createNewsletter('idempotent-finalize')
     const reservation = await reserveCredit({
       newsletterId,
+      userId: TEST_USER_ID,
       source: 'manual',
     })
 
     await finalizeCreditReservationSuccess(reservation.reservationId)
-    const afterFirstFinalize = await getCreditStatus()
+    const afterFirstFinalize = await getCreditStatus(TEST_USER_ID)
 
     await finalizeCreditReservationSuccess(reservation.reservationId)
     await finalizeCreditReservationFailure(reservation.reservationId, 'should_not_change')
-    const afterRepeatedFinalize = await getCreditStatus()
+    const afterRepeatedFinalize = await getCreditStatus(TEST_USER_ID)
 
     expect(afterFirstFinalize).toEqual(afterRepeatedFinalize)
     expect(afterRepeatedFinalize.consumed).toBe(1)
@@ -151,7 +156,7 @@ describe('credits service', () => {
     const newsletterIds = await createNewsletters(50)
 
     await Promise.all(
-      newsletterIds.map(newsletterId => reserveCredit({ newsletterId, source: 'batch' })),
+      newsletterIds.map(newsletterId => reserveCredit({ newsletterId, userId: TEST_USER_ID, source: 'batch' })),
     )
 
     await sql`
@@ -163,12 +168,13 @@ describe('credits service', () => {
     const extraNewsletterId = await createNewsletter('after-expiration')
     const extraReservation = await reserveCredit({
       newsletterId: extraNewsletterId,
+      userId: TEST_USER_ID,
       source: 'manual',
     })
 
     expect(extraReservation.reservationId).toBeTruthy()
 
-    const status = await getCreditStatus()
+    const status = await getCreditStatus(TEST_USER_ID)
     expect(status.consumed).toBe(0)
     expect(status.reserved).toBe(1)
     expect(status.remaining).toBe(49)
@@ -181,27 +187,28 @@ describe('credits service', () => {
     const newsletterIds = await createNewsletters(52)
 
     await Promise.all(
-      newsletterIds.slice(0, 50).map(newsletterId => reserveCredit({ newsletterId, source: 'batch', now: februaryNow })),
+      newsletterIds.slice(0, 50).map(newsletterId => reserveCredit({ newsletterId, userId: TEST_USER_ID, source: 'batch', now: februaryNow })),
     )
 
     await expect(
-      reserveCredit({ newsletterId: newsletterIds[50], source: 'batch', now: februaryNow }),
+      reserveCredit({ newsletterId: newsletterIds[50], userId: TEST_USER_ID, source: 'batch', now: februaryNow }),
     ).rejects.toBeInstanceOf(CreditExhaustedError)
 
     const marchReservation = await reserveCredit({
       newsletterId: newsletterIds[51],
+      userId: TEST_USER_ID,
       source: 'batch',
       now: marchNow,
     })
     expect(marchReservation.reservationId).toBeTruthy()
 
-    const februaryStatus = await getCreditStatus(februaryNow)
+    const februaryStatus = await getCreditStatus(TEST_USER_ID, februaryNow)
     expect(februaryStatus.periodStart).toBe('2026-02-01')
     expect(februaryStatus.reserved).toBe(50)
     expect(februaryStatus.remaining).toBe(0)
     expect(februaryStatus.exhausted).toBe(true)
 
-    const marchStatus = await getCreditStatus(marchNow)
+    const marchStatus = await getCreditStatus(TEST_USER_ID, marchNow)
     expect(marchStatus.periodStart).toBe('2026-03-01')
     expect(marchStatus.reserved).toBe(1)
     expect(marchStatus.remaining).toBe(49)
@@ -213,13 +220,13 @@ describe('credits service', () => {
     const periodStart = toPeriodStartUTC(now)
 
     await sql`
-      INSERT INTO analysis_credit_months (period_start, credit_limit, reserved_count, consumed_count)
-      VALUES (${periodStart}, 50, 0, 49)
+      INSERT INTO analysis_credit_months (user_id, period_start, credit_limit, reserved_count, consumed_count)
+      VALUES (${TEST_USER_ID}, ${periodStart}, 50, 0, 49)
     `
 
     const newsletterIds = await createNewsletters(10)
     const results = await Promise.allSettled(
-      newsletterIds.map(newsletterId => reserveCredit({ newsletterId, source: 'manual', now })),
+      newsletterIds.map(newsletterId => reserveCredit({ newsletterId, userId: TEST_USER_ID, source: 'manual', now })),
     )
 
     const fulfilled = results.filter((result): result is PromiseFulfilledResult<{ reservationId: string }> => result.status === 'fulfilled')
@@ -229,7 +236,7 @@ describe('credits service', () => {
     expect(rejected).toHaveLength(9)
     expect(rejected.every(result => result.reason instanceof CreditExhaustedError)).toBe(true)
 
-    const status = await getCreditStatus(now)
+    const status = await getCreditStatus(TEST_USER_ID, now)
     expect(status.consumed).toBe(49)
     expect(status.reserved).toBe(1)
     expect(status.remaining).toBe(0)
@@ -240,6 +247,7 @@ describe('credits service', () => {
     const newsletterId = await createNewsletter('concurrent-finalization')
     const reservation = await reserveCredit({
       newsletterId,
+      userId: TEST_USER_ID,
       source: 'manual',
     })
 
@@ -249,7 +257,7 @@ describe('credits service', () => {
       finalizeCreditReservationSuccess(reservation.reservationId),
     ])
 
-    const status = await getCreditStatus()
+    const status = await getCreditStatus(TEST_USER_ID)
     expect(status.consumed).toBe(1)
     expect(status.reserved).toBe(0)
     expect(status.remaining).toBe(49)

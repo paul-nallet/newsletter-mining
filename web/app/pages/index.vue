@@ -1,35 +1,62 @@
 <script setup lang="ts">
-import type { AccordionItem, ButtonProps, NavigationMenuItem, PricingPlanProps } from '@nuxt/ui'
+import type { AccordionItem, ButtonProps, NavigationMenuItem } from '@nuxt/ui'
+import { authClient } from '~/lib/auth-client'
 
 definePageMeta({ layout: false })
+
+const route = useRoute()
+const requestURL = useRequestURL()
+const canonical = computed(() => new URL(route.path, requestURL.origin).toString())
+
+useHead({
+  link: [{ rel: 'canonical', href: canonical }],
+})
 
 useSeoMeta({
   title: 'Newsletter Mining - Find hidden value in unread newsletters',
   description: 'Too many newsletters and no time to read them all? Turn inbox noise into clear product opportunities.',
+  ogTitle: 'Newsletter Mining - Find hidden value in unread newsletters',
+  ogDescription: 'Turn inbox noise into clear product opportunities. Extract recurring problems from newsletters with AI.',
+  ogImage: '/images/og-cover.png',
+  ogType: 'website',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Newsletter Mining',
+  twitterDescription: 'Turn inbox noise into clear product opportunities.',
+  twitterImage: '/images/og-cover.png',
 })
+
+const { session } = useAuthSession()
+
+const { data: waitlistCount } = await useFetch('/api/waitlist/count', { key: 'waitlist-count' })
 
 const navItems = ref<NavigationMenuItem[]>([
   { label: 'Product', to: '#features' },
+  { label: 'By audience', to: '#audiences' },
   { label: 'How it works', to: '#pipeline' },
   { label: 'Pricing', to: '#pricing' },
   { label: 'Waitlist', to: '#waitlist' },
   { label: 'FAQ', to: '#faq' },
 ])
 
-const heroLinks = ref<ButtonProps[]>([
-  {
-    label: 'Join waitlist',
-    to: '#waitlist',
-    color: 'neutral',
-    trailingIcon: 'i-lucide-arrow-right',
-  },
-  {
-    label: 'Open dashboard',
-    to: '/app',
-    color: 'neutral',
-    variant: 'subtle',
-  },
-])
+const heroLinks = computed<ButtonProps[]>(() => {
+  const links: ButtonProps[] = [
+    {
+      label: 'Join waitlist',
+      to: '#waitlist',
+      color: 'neutral',
+      trailingIcon: 'i-lucide-arrow-right',
+    },
+  ]
+  if (session.value.authenticated) {
+    links.push({
+      label: 'Open dashboard',
+      to: '/app',
+      color: 'neutral',
+      variant: 'subtle',
+    })
+  }
+  return links
+})
 
 const featureCards = [
   {
@@ -82,6 +109,37 @@ const pipelineCards = [
   },
 ] as const
 
+const audienceCards = [
+  {
+    id: 'indie-hackers',
+    title: 'Indie Hackers',
+    description: 'Find your next side project by extracting recurring pain points from unread newsletters.',
+    to: '/for-indie-hackers',
+    cta: 'See Indie page',
+  },
+  {
+    id: 'vcs',
+    title: 'VCs',
+    description: 'Detect emerging market gaps from newsletter signals before they become mainstream.',
+    to: '/for-vcs',
+    cta: 'See VC page',
+  },
+  {
+    id: 'product-managers',
+    title: 'Product Managers',
+    description: 'Prioritize roadmap decisions with repeated, evidence-based pain signals.',
+    to: '/for-product-managers',
+    cta: 'See PM page',
+  },
+  {
+    id: 'consultants',
+    title: 'Consultants',
+    description: 'Bring stronger insight to client calls with trend and pain-point detection.',
+    to: '/for-consultants',
+    cta: 'See Consultant page',
+  },
+] as const
+
 const billingModel = ref('monthly')
 
 const billingItems = ref([
@@ -91,6 +149,7 @@ const billingItems = ref([
 
 interface PlanSource {
   title: string
+  planId?: string
   description: string
   monthlyPrice: string
   yearlyPrice: string
@@ -98,11 +157,29 @@ interface PlanSource {
   originalYearlyPrice?: string
   billingPeriod: string
   features: string[]
-  button: ButtonProps
+  button: Record<string, any>
   badge?: string
   highlight?: boolean
   scale?: boolean
   tagline?: string
+}
+
+async function handlePlanUpgrade(plan: string) {
+  if (!session.value.authenticated) {
+    await navigateTo('/register')
+    return
+  }
+  try {
+    await authClient.subscription.upgrade({
+      plan,
+      annual: billingModel.value === 'yearly',
+      successUrl: '/app/settings',
+      cancelUrl: '/#pricing',
+    })
+  }
+  catch (e: any) {
+    console.error('Stripe checkout error:', e)
+  }
 }
 
 const planSources = ref<PlanSource[]>([
@@ -127,13 +204,14 @@ const planSources = ref<PlanSource[]>([
   },
   {
     title: 'Growth',
+    planId: 'growth',
     description: 'For non-technical operators who need weekly product insights.',
-    monthlyPrice: '$39',
-    yearlyPrice: '$390',
-    originalMonthlyPrice: '$78',
-    originalYearlyPrice: '$780',
+    monthlyPrice: '$19',
+    yearlyPrice: '$190',
+    originalMonthlyPrice: '$39',
+    originalYearlyPrice: '$390',
     billingPeriod: '2 months free',
-    badge: 'Most popular - Beta -50%',
+    badge: 'Most popular · Early bird -51%',
     highlight: true,
     scale: true,
     tagline: 'Best value for consistent insight',
@@ -146,18 +224,18 @@ const planSources = ref<PlanSource[]>([
     button: {
       label: 'Choose Growth',
       color: 'neutral',
-      to: '/register',
     },
   },
   {
     title: 'Studio',
+    planId: 'studio',
     description: 'For teams tracking multiple topics and bigger newsletter volumes.',
-    monthlyPrice: '$99',
-    yearlyPrice: '$990',
-    originalMonthlyPrice: '$198',
-    originalYearlyPrice: '$1980',
+    monthlyPrice: '$39',
+    yearlyPrice: '$390',
+    originalMonthlyPrice: '$99',
+    originalYearlyPrice: '$990',
     billingPeriod: '2 months free',
-    badge: 'Beta -50%',
+    badge: 'Early bird -61%',
     features: [
       '2,000 newsletter analyses per month',
       'Topic-based segmentation',
@@ -165,18 +243,21 @@ const planSources = ref<PlanSource[]>([
       'Guided onboarding',
     ],
     button: {
-      label: 'Talk to us',
+      label: 'Choose Studio',
       color: 'neutral',
       variant: 'outline',
-      to: 'mailto:hello@newsletter-mining.local?subject=Studio%20plan',
     },
   },
 ])
 
-const pricingPlans = computed<PricingPlanProps[]>(() => {
+const pricingPlans = computed(() => {
   return planSources.value.map((plan) => {
     const cyclePrice = billingModel.value === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice
     const cycleOriginalPrice = billingModel.value === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice
+
+    const button = plan.planId
+      ? { ...plan.button, onClick: () => handlePlanUpgrade(plan.planId!) }
+      : plan.button
 
     return {
       title: plan.title,
@@ -184,13 +265,13 @@ const pricingPlans = computed<PricingPlanProps[]>(() => {
       price: cycleOriginalPrice ?? cyclePrice,
       discount: cycleOriginalPrice ? cyclePrice : undefined,
       billingCycle: billingModel.value === 'yearly' ? '/year' : '/month',
-      billingPeriod: billingModel.value === 'yearly' ? `${plan.billingPeriod} (beta pricing)` : 'billed monthly (beta pricing)',
+      billingPeriod: billingModel.value === 'yearly' ? `${plan.billingPeriod} (early bird)` : 'billed monthly (early bird)',
       badge: plan.badge,
       highlight: plan.highlight,
       scale: plan.scale,
       tagline: plan.tagline,
       features: plan.features,
-      button: plan.button,
+      button,
       variant: plan.highlight ? 'subtle' : 'outline',
     }
   })
@@ -213,6 +294,22 @@ const faqItems = ref<AccordionItem[]>([
     label: 'Is my inbox data protected?',
     content: 'Inbound requests are verified before processing, and data is kept in your own secured environment.',
   },
+  {
+    label: 'What newsletters does it work with?',
+    content: 'Any newsletter you receive by email or can export as .html/.txt/.eml. Tech, business, marketing, indie hacking — the AI adapts to any topic.',
+  },
+  {
+    label: 'Can I connect my email directly?',
+    content: 'Yes, via Mailgun webhook. Newsletters are forwarded automatically — no manual import needed after setup.',
+  },
+  {
+    label: 'What happens to my data if I cancel?',
+    content: 'Your data stays available for 30 days after cancellation. You can export it anytime before that.',
+  },
+  {
+    label: 'How is this different from just using ChatGPT?',
+    content: 'ChatGPT analyzes one text at a time. Newsletter Mining processes your entire newsletter history, clusters recurring problems across sources, and tracks trends over time.',
+  },
 ])
 
 const footerColumns = [
@@ -220,24 +317,26 @@ const footerColumns = [
     label: 'Product',
     children: [
       { label: 'Features', to: '#features' },
+      { label: 'By audience', to: '#audiences' },
       { label: 'How it works', to: '#pipeline' },
       { label: 'Pricing', to: '#pricing' },
     ],
   },
   {
-    label: 'App',
+    label: 'Use cases',
     children: [
-      { label: 'Dashboard', to: '/app' },
-      { label: 'Newsletters', to: '/newsletters' },
-      { label: 'Settings', to: '/settings' },
+      { label: 'For Indie Hackers', to: '/for-indie-hackers' },
+      { label: 'For VCs', to: '/for-vcs' },
+      { label: 'For Product Managers', to: '/for-product-managers' },
+      { label: 'For Consultants', to: '/for-consultants' },
     ],
   },
   {
     label: 'Account',
     children: [
-      { label: 'Login', to: '/login' },
-      { label: 'Register', to: '/register' },
-      { label: 'Feedback', to: 'mailto:?subject=Newsletter%20Mining%20Feedback' },
+      { label: 'Dashboard', to: '/app' },
+      { label: 'Newsletters', to: '/app/newsletters' },
+      { label: 'Settings', to: '/app/settings' },
     ],
   },
 ]
@@ -286,14 +385,14 @@ const footerColumns = [
           <div class="hero-aura" />
         </template>
 
-        <UPageCard
-          title="Your weekly signal brief"
-          description="A simple view of what people keep struggling with and asking for."
-          icon="i-lucide-gauge"
-          variant="subtle"
-          class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90"
-        >
-          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div class="overflow-hidden rounded-lg border border-[var(--ui-border)] bg-white shadow-xl dark:bg-neutral-900">
+          <div class="flex items-center gap-1.5 border-b border-[var(--ui-border)] bg-[var(--ui-bg)] px-3 py-2">
+            <span class="size-2.5 rounded-full bg-red-400/60" />
+            <span class="size-2.5 rounded-full bg-yellow-400/60" />
+            <span class="size-2.5 rounded-full bg-green-400/60" />
+            <span class="ml-2 text-xs text-[var(--ui-text-muted)]">newsletter-mining.com/app</span>
+          </div>
+          <div class="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2">
             <div class="rounded-md border border-[var(--ui-border)] p-3">
               <p class="text-xs text-[var(--ui-text-muted)]">Input</p>
               <p class="mt-1 text-sm font-semibold">Unread newsletters</p>
@@ -311,7 +410,7 @@ const footerColumns = [
               <p class="mt-1 text-sm font-semibold">What to build next</p>
             </div>
           </div>
-        </UPageCard>
+        </div>
 
         <div class="mt-6 max-w-xl">
           <LandingWaitlistInlineForm
@@ -320,8 +419,41 @@ const footerColumns = [
             description="Join the waitlist and get early beta access."
             button-label="Join waitlist"
           />
+          <p v-if="waitlistCount?.total" class="mt-3 text-center text-sm text-[var(--ui-text-muted)]">
+            {{ waitlistCount.total }} {{ waitlistCount.total === 1 ? 'founder' : 'founders' }} on the waitlist
+          </p>
         </div>
       </UPageHero>
+
+      <USeparator class="h-px" />
+
+      <UPageSection
+        id="audiences"
+        headline="By audience"
+        title="Choose the page built for your workflow"
+        description="Each page has dedicated messaging, use cases, and waitlist tracking."
+      >
+        <UPageGrid class="w-full">
+          <UPageCard
+            v-for="audience in audienceCards"
+            :key="audience.id"
+            :title="audience.title"
+            :description="audience.description"
+            icon="i-lucide-users"
+            variant="subtle"
+          >
+            <template #footer>
+              <UButton
+                :to="audience.to"
+                color="neutral"
+                variant="outline"
+                :label="audience.cta"
+                trailing-icon="i-lucide-arrow-right"
+              />
+            </template>
+          </UPageCard>
+        </UPageGrid>
+      </UPageSection>
 
       <USeparator class="h-px" />
 
@@ -341,15 +473,6 @@ const footerColumns = [
             variant="subtle"
           />
         </UPageGrid>
-
-        <div class="mx-auto mt-8 w-full max-w-2xl">
-          <LandingWaitlistInlineForm
-            source="features-section"
-            title="Want this in your workflow?"
-            description="Drop your email to join the early access list."
-            button-label="Join waitlist"
-          />
-        </div>
       </UPageSection>
 
       <USeparator class="h-px" />
@@ -360,6 +483,8 @@ const footerColumns = [
         title="From inbox overload to clear product direction in 3 steps"
         description="No complex workflow. Just a repeatable system you can trust every week."
       >
+        <LandingDataFlowAnimation />
+
         <UPageGrid class="w-full">
           <UPageCard
             v-for="step in pipelineCards"
@@ -378,15 +503,6 @@ const footerColumns = [
             </template>
           </UPageCard>
         </UPageGrid>
-
-        <div class="mx-auto mt-8 w-full max-w-2xl">
-          <LandingWaitlistInlineForm
-            source="pipeline-section"
-            title="Ready for a simpler weekly process?"
-            description="Join the waitlist and get notified when seats open."
-            button-label="Join waitlist"
-          />
-        </div>
       </UPageSection>
 
       <USeparator class="h-px" />
@@ -395,7 +511,7 @@ const footerColumns = [
         id="pricing"
         headline="Pricing"
         title="Simple plans, clear limits"
-        description="Beta launch pricing is live: all paid plans are 50% off for early users."
+        description="Early bird pricing is live: up to 61% off for early users."
       >
         <template #links>
           <UTabs
@@ -424,7 +540,7 @@ const footerColumns = [
           <LandingWaitlistInlineForm
             source="pricing-section"
             title="Lock your beta access"
-            description="Join now to keep the 50% beta pricing when your invite is ready."
+            description="Join now to lock early bird pricing when your invite is ready."
             button-label="Join waitlist"
           />
         </div>
@@ -449,15 +565,6 @@ const footerColumns = [
             body: 'text-base text-muted'
           }"
         />
-
-        <div class="mx-auto mt-8 w-full max-w-2xl">
-          <LandingWaitlistInlineForm
-            source="faq-section"
-            title="Still interested?"
-            description="Add your email and we will send one invite email when access opens."
-            button-label="Join waitlist"
-          />
-        </div>
       </UPageSection>
 
       <UPageSection :ui="{ container: 'px-0 sm:px-4' }">
@@ -490,7 +597,7 @@ const footerColumns = [
             <LandingWaitlistInlineForm
               source="final-cta"
               title="Get early access"
-              description="Enter your email to join the waitlist and keep beta pricing at 50% off."
+              description="Enter your email to join the waitlist and lock early bird pricing."
               button-label="Join waitlist"
             />
           </div>

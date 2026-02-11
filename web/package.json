@@ -9,6 +9,7 @@
     "start": "node .output/server/index.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:reset": "docker exec news-mining-db psql -U newsletter -d postgres -c 'DROP DATABASE IF EXISTS newsletter_mining;' && docker exec news-mining-db psql -U newsletter -d postgres -c 'CREATE DATABASE newsletter_mining;' && npm run db:migrate && npm run auth:migrate",
     "db:studio": "drizzle-kit studio",
     "test:unit": "vitest run",
     "test:credits:prepare-db": "docker exec news-mining-db psql -U newsletter -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname='newsletter_mining_test'\" | grep -q 1 || docker exec news-mining-db psql -U newsletter -d postgres -c \"CREATE DATABASE newsletter_mining_test;\"",
@@ -17,7 +18,10 @@
     "auth:migrate": "better-auth migrate --config ./server/utils/auth.ts --yes"
   },
   "dependencies": {
+    "@better-auth/stripe": "^1.4.18",
     "@nuxt/ui": "^4.4.0",
+    "@nuxtjs/mdc": "^0.20.1",
+    "@types/turndown": "^5.0.6",
     "@unovis/ts": "^1.6.4",
     "@unovis/vue": "^1.6.4",
     "better-auth": "^1.4.18",
@@ -28,8 +32,15 @@
     "openai": "^4.70.0",
     "pg": "^8.18.0",
     "postgres": "^3.4.0",
+    "stripe": "^20.3.1",
     "tailwindcss": "^4.1.18",
+    "turndown": "^7.2.2",
     "zod": "^3.25.76"
+  },
+  "overrides": {
+    "better-call": {
+      "zod": "$zod"
+    }
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.18",

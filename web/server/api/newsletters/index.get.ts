@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import { getQuery } from 'h3'
 import type { NewsletterListItem, NewsletterPageResponse } from '#shared/types/newsletter'
 import { useDB } from '../../database'
@@ -11,6 +11,7 @@ function parsePositiveInt(value: unknown, fallback: number) {
 }
 
 export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const db = useDB()
   const query = getQuery(event)
 
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
   const offset = parsePositiveInt(query.offset, 0)
   const isPaginated = limit > 0
 
-  const whereParts = []
+  const whereParts = [eq(newsletters.userId, userId), isNull(newsletters.deletedAt)]
 
   if (q) {
     const pattern = `%${q}%`
@@ -37,7 +38,7 @@ export default defineEventHandler(async (event) => {
         ilike(newsletters.subject, pattern),
         ilike(newsletters.fromName, pattern),
         ilike(newsletters.fromEmail, pattern),
-      ),
+      )!,
     )
   }
 
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
   if (source === 'file') whereParts.push(eq(newsletters.sourceType, 'file'))
   if (source === 'email') whereParts.push(eq(newsletters.sourceType, 'mailgun'))
 
-  const whereClause = whereParts.length ? and(...whereParts) : undefined
+  const whereClause = and(...whereParts)
   const primaryOrder = sort === 'asc' ? asc(newsletters.receivedAt) : desc(newsletters.receivedAt)
   const secondaryOrder = sort === 'asc' ? asc(newsletters.id) : desc(newsletters.id)
 
@@ -56,6 +57,7 @@ export default defineEventHandler(async (event) => {
       problemCount: count(problems.id).as('problem_count'),
     })
     .from(problems)
+    .where(eq(problems.userId, userId))
     .groupBy(problems.newsletterId)
     .as('problem_counts')
 
@@ -74,9 +76,10 @@ export default defineEventHandler(async (event) => {
     })
     .from(newsletters)
     .leftJoin(problemCounts, eq(problemCounts.newsletterId, newsletters.id))
+    .where(whereClause)
     .orderBy(primaryOrder, secondaryOrder)
 
-  const rows = await (whereClause ? baseQuery.where(whereClause) : baseQuery)
+  const rows = await baseQuery
     .limit(isPaginated ? limit : undefined)
     .offset(isPaginated ? offset : undefined)
 
@@ -89,10 +92,10 @@ export default defineEventHandler(async (event) => {
     return normalizedRows
   }
 
-  const totalQuery = db.select({ total: count() }).from(newsletters)
-  const [totalRow] = await (whereClause ? totalQuery.where(whereClause) : totalQuery)
-  const pendingQuery = db.select({ total: count() }).from(newsletters).where(eq(newsletters.analyzed, false))
-  const [pendingRow] = await pendingQuery
+  const [totalRow] = await db.select({ total: count() }).from(newsletters).where(whereClause)
+  const [pendingRow] = await db.select({ total: count() }).from(newsletters).where(
+    and(eq(newsletters.userId, userId), eq(newsletters.analyzed, false), isNull(newsletters.deletedAt)),
+  )
   const total = Number(totalRow?.total ?? 0)
   const pendingTotal = Number(pendingRow?.total ?? 0)
   const nextOffset = offset + normalizedRows.length

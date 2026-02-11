@@ -1,6 +1,6 @@
 {
-  "id": "f8d5bf67-dae1-4227-8562-73e07af977d2",
-  "prevId": "b4c76ced-81cd-417d-8e55-11b99934386f",
+  "id": "2aade723-66f5-4e93-baaf-38ac570326c7",
+  "prevId": "055dfbe4-06be-43bd-aedc-e65380c9a304",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8,10 +8,16 @@
       "name": "analysis_credit_months",
       "schema": "",
       "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "period_start": {
           "name": "period_start",
           "type": "date",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "credit_limit": {
@@ -45,7 +51,15 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "analysis_credit_months_user_id_period_start_pk": {
+          "name": "analysis_credit_months_user_id_period_start_pk",
+          "columns": [
+            "user_id",
+            "period_start"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
@@ -78,6 +92,12 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "period_start": {
           "name": "period_start",
@@ -149,9 +169,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "analysis_credit_reservations_newsletter_status_idx": {
           "name": "analysis_credit_reservations_newsletter_status_idx",
@@ -170,9 +190,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "analysis_credit_reservations_expires_at_idx": {
           "name": "analysis_credit_reservations_expires_at_idx",
@@ -185,37 +205,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
-        "analysis_credit_reservations_period_start_analysis_credit_months_period_start_fk": {
-          "name": "analysis_credit_reservations_period_start_analysis_credit_months_period_start_fk",
-          "tableFrom": "analysis_credit_reservations",
-          "tableTo": "analysis_credit_months",
-          "columnsFrom": [
-            "period_start"
-          ],
-          "columnsTo": [
-            "period_start"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "analysis_credit_reservations_newsletter_id_newsletters_id_fk": {
           "name": "analysis_credit_reservations_newsletter_id_newsletters_id_fk",
           "tableFrom": "analysis_credit_reservations",
-          "tableTo": "newsletters",
           "columnsFrom": [
             "newsletter_id"
           ],
+          "tableTo": "newsletters",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -234,6 +241,12 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "received_at": {
           "name": "received_at",
@@ -263,15 +276,8 @@
           "notNull": false,
           "default": "''"
         },
-        "html_body": {
-          "name": "html_body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "''"
-        },
-        "text_body": {
-          "name": "text_body",
+        "markdown_body": {
+          "name": "markdown_body",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -316,6 +322,12 @@
           "notNull": false,
           "default": "'[]'::jsonb"
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -324,7 +336,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "newsletters_user_id_idx": {
+          "name": "newsletters_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -342,6 +370,12 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "cluster_name": {
           "name": "cluster_name",
@@ -393,7 +427,23 @@
           "default": "'stable'"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "problem_clusters_user_id_idx": {
+          "name": "problem_clusters_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -411,6 +461,12 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "newsletter_id": {
           "name": "newsletter_id",
@@ -496,6 +552,21 @@
         }
       },
       "indexes": {
+        "problems_user_id_idx": {
+          "name": "problems_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
         "problems_newsletter_id_idx": {
           "name": "problems_newsletter_id_idx",
           "columns": [
@@ -507,9 +578,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "problems_severity_idx": {
           "name": "problems_severity_idx",
@@ -522,9 +593,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "problems_category_idx": {
           "name": "problems_category_idx",
@@ -537,26 +608,74 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "problems_newsletter_id_newsletters_id_fk": {
           "name": "problems_newsletter_id_newsletters_id_fk",
           "tableFrom": "problems",
-          "tableTo": "newsletters",
           "columnsFrom": [
             "newsletter_id"
           ],
+          "tableTo": "newsletters",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_profiles": {
+      "name": "user_profiles",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ingest_email": {
+          "name": "ingest_email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_profiles_ingest_email_idx": {
+          "name": "user_profiles_ingest_email_idx",
+          "columns": [
+            {
+              "expression": "ingest_email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -628,9 +747,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "waitlist_signups_created_at_idx": {
           "name": "waitlist_signups_created_at_idx",
@@ -643,9 +762,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -706,10 +825,10 @@
     }
   },
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

@@ -2,8 +2,9 @@ import crypto from 'node:crypto'
 import { useDB } from '../../database'
 import { newsletters } from '../../database/schema'
 import { CreditExhaustedError } from '../../services/credits'
-import { parseHtml } from '../../services/parser'
+import { htmlToMarkdown } from '../../services/parser'
 import { analyzeNewsletterById } from '../../utils/analyze'
+import { getUserByIngestEmail } from '../../utils/ingestEmail'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -34,7 +35,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Invalid signature' })
   }
 
-  // 2. Extract email fields
+  // 2. Lookup user by recipient ingest email
+  const recipient = fields['recipient'] || ''
+  const userId = await getUserByIngestEmail(recipient)
+
+  if (!userId) {
+    console.warn(`[mailgun] no user found for recipient: ${recipient}`)
+    throw createError({ statusCode: 404, statusMessage: 'Unknown recipient' })
+  }
+
+  // 3. Extract email fields
   const sender = fields['sender'] || fields['from'] || ''
   const fromName = extractFromName(sender)
   const fromEmail = extractFromEmail(sender)
@@ -43,29 +53,29 @@ export default defineEventHandler(async (event) => {
   const bodyPlain = fields['body-plain'] || ''
   const strippedText = fields['stripped-text'] || ''
 
-  // Prefer stripped-text (no quoted reply), fall back to body-plain, then parsed HTML
-  let textBody = strippedText || bodyPlain
-  if (!textBody && bodyHtml) {
-    textBody = parseHtml(bodyHtml)
+  // Prefer HTML -> markdown conversion for richer structure, then text fallback
+  let markdownBody = bodyHtml ? htmlToMarkdown(bodyHtml) : ''
+  if (!markdownBody) {
+    markdownBody = strippedText || bodyPlain
   }
 
-  if (!textBody) {
+  if (!markdownBody) {
     throw createError({ statusCode: 400, statusMessage: 'No email body found' })
   }
 
-  // 3. Store in database
+  // 4. Store in database
   const db = useDB()
   const [row] = await db.insert(newsletters).values({
+    userId,
     subject,
     fromEmail,
     fromName,
-    htmlBody: bodyHtml,
-    textBody,
+    markdownBody,
     sourceType: 'mailgun',
   }).returning()
 
-  // 4. Auto-trigger analysis (fire and forget)
-  analyzeNewsletterById(row.id, { source: 'mailgun' }).catch((err) => {
+  // 5. Auto-trigger analysis (fire and forget)
+  analyzeNewsletterById(row.id, { source: 'mailgun', userId }).catch((err) => {
     if (err instanceof CreditExhaustedError) {
       console.info(
         `Auto-analysis deferred for newsletter ${row.id}: monthly credits exhausted (remaining ${err.status.remaining}).`,
@@ -75,7 +85,7 @@ export default defineEventHandler(async (event) => {
     console.error(`Auto-analysis failed for newsletter ${row.id}:`, err)
   })
 
-  // 5. Return 200 immediately (Mailgun expects quick response)
+  // 6. Return 200 immediately (Mailgun expects quick response)
   return { id: row.id, status: 'received' }
 })
 

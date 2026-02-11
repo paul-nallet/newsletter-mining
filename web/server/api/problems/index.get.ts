@@ -3,11 +3,12 @@ import { useDB } from '../../database'
 import { problems, newsletters } from '../../database/schema'
 
 export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const db = useDB()
   const query = getQuery(event)
   const { severity, category, search, limit = '50', offset = '0' } = query
 
-  const conditions = []
+  const conditions = [eq(problems.userId, userId)]
 
   if (severity && typeof severity === 'string') {
     conditions.push(eq(problems.severity, severity as any))
@@ -22,7 +23,7 @@ export default defineEventHandler(async (event) => {
     )
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined
+  const where = and(...conditions)
 
   const rows = await db
     .select({

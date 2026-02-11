@@ -1,9 +1,14 @@
 import { config } from 'dotenv'
 import { resolve } from 'node:path'
 import { betterAuth } from 'better-auth'
-import { APIError, createAuthMiddleware } from 'better-auth/api'
-import { Kysely, PostgresDialect, sql } from 'kysely'
+import { stripe } from '@better-auth/stripe'
+import Stripe from 'stripe'
+import { Kysely, PostgresDialect } from 'kysely'
 import { Pool } from 'pg'
+import { generateIngestEmail } from './ingestEmail'
+import { syncCreditLimit } from './syncCreditLimit'
+import { useDB } from '../database'
+import { userProfiles } from '../database/schema'
 
 config({ path: resolve(process.cwd(), '../.env') })
 
@@ -28,6 +33,8 @@ const db = new Kysely({
   }),
 })
 
+const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || '')
+
 export const auth = betterAuth({
   secret,
   baseURL,
@@ -40,26 +47,56 @@ export const auth = betterAuth({
     enabled: true,
   },
   plugins: [
-    {
-      id: 'single-user-signup-guard',
-      hooks: {
-        before: [
+    stripe({
+      stripeClient,
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+      createCustomerOnSignUp: true,
+      subscription: {
+        enabled: true,
+        plans: [
           {
-            matcher(ctx) {
-              return ctx.path === '/sign-up/email'
-            },
-            handler: createAuthMiddleware(async () => {
-              const result = await sql<{ count: number }>`select count(*)::int as count from "user"`.execute(db)
-              const existingUsers = result.rows[0]?.count ?? 0
-              if (existingUsers > 0) {
-                throw new APIError('FORBIDDEN', {
-                  message: 'Registration is closed. This app is configured for a single account.',
-                })
-              }
-            }),
+            name: 'growth',
+            priceId: process.env.STRIPE_PRICE_GROWTH_MONTHLY || '',
+            annualDiscountPriceId: process.env.STRIPE_PRICE_GROWTH_YEARLY || undefined,
+            limits: { credits: 500 },
+          },
+          {
+            name: 'studio',
+            priceId: process.env.STRIPE_PRICE_STUDIO_MONTHLY || '',
+            annualDiscountPriceId: process.env.STRIPE_PRICE_STUDIO_YEARLY || undefined,
+            limits: { credits: 2000 },
           },
         ],
+        onSubscriptionComplete: async ({ subscription, plan }) => {
+          await syncCreditLimit(subscription.referenceId, plan?.name ?? null)
+        },
+        onSubscriptionUpdate: async ({ subscription }) => {
+          // When plan changes mid-cycle, re-sync
+          await syncCreditLimit(subscription.referenceId, subscription.plan ?? null)
+        },
+        onSubscriptionCancel: async ({ subscription }) => {
+          // Will revert at period end; set limit to free now so next period gets free limit
+          await syncCreditLimit(subscription.referenceId, null)
+        },
+        onSubscriptionDeleted: async ({ subscription }) => {
+          await syncCreditLimit(subscription.referenceId, null)
+        },
+      },
+    }),
+  ],
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          const drizzleDb = useDB()
+          const ingestEmail = generateIngestEmail()
+          await drizzleDb.insert(userProfiles).values({
+            userId: user.id,
+            ingestEmail,
+          })
+          console.info(`[auth] created profile for user ${user.id} with ingest email ${ingestEmail}`)
+        },
       },
     },
-  ],
+  },
 })

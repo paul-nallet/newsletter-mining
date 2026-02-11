@@ -37,7 +37,7 @@
 
     <div class="mt-4 border-t border-[var(--ui-border)] pt-4">
       <UButton
-        to="/newsletters"
+        to="/app/newsletters"
         label="Go to Newsletters"
         icon="i-lucide-arrow-right"
         trailing

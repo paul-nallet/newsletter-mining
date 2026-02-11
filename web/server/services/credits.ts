@@ -3,9 +3,26 @@ import type { CreditStatus } from '#shared/types/credits'
 import { useDB } from '../database'
 import { analysisCreditMonths, analysisCreditReservations } from '../database/schema'
 import { emitAppEvent } from '../utils/eventBus'
+import { FREE_CREDIT_LIMIT, PLAN_CREDITS } from '../utils/planLimits'
+import { usePgClient } from '../database/client'
 
-const MONTHLY_CREDIT_LIMIT = 50
 const RESERVATION_TTL_MINUTES = 20
+
+async function getCreditLimitForUser(userId: string): Promise<number> {
+  const pgClient = usePgClient()
+  const result = await pgClient`
+    SELECT plan FROM subscription
+    WHERE "referenceId" = ${userId}
+      AND status = 'active'
+    ORDER BY "periodStart" DESC
+    LIMIT 1
+  `
+  const planName = result[0]?.plan as string | undefined
+  if (planName && PLAN_CREDITS[planName]) {
+    return PLAN_CREDITS[planName]
+  }
+  return FREE_CREDIT_LIMIT
+}
 
 export type AnalysisCreditSource = 'mailgun' | 'manual' | 'batch' | 'task'
 
@@ -43,7 +60,7 @@ function toCreditStatus(row: {
   consumedCount: number
   reservedCount: number
 }): CreditStatus {
-  const limit = Number(row.creditLimit ?? MONTHLY_CREDIT_LIMIT)
+  const limit = Number(row.creditLimit ?? FREE_CREDIT_LIMIT)
   const consumed = Number(row.consumedCount ?? 0)
   const reserved = Number(row.reservedCount ?? 0)
   const remaining = Math.max(limit - consumed - reserved, 0)
@@ -60,19 +77,23 @@ function toCreditStatus(row: {
 
 async function ensureCurrentPeriodRow(
   tx: any,
+  userId: string,
   periodStart: string,
+  creditLimit: number,
 ) {
   await tx
     .insert(analysisCreditMonths)
     .values({
+      userId,
       periodStart,
-      creditLimit: MONTHLY_CREDIT_LIMIT,
+      creditLimit,
     })
     .onConflictDoNothing()
 }
 
 async function releaseExpiredReservations(
   tx: any,
+  userId: string,
   periodStart: string,
   now: Date,
 ) {
@@ -85,6 +106,7 @@ async function releaseExpiredReservations(
     })
     .where(
       and(
+        eq(analysisCreditReservations.userId, userId),
         eq(analysisCreditReservations.periodStart, periodStart),
         eq(analysisCreditReservations.status, 'reserved'),
         lt(analysisCreditReservations.expiresAt, now),
@@ -100,11 +122,17 @@ async function releaseExpiredReservations(
       reservedCount: sql`greatest(${analysisCreditMonths.reservedCount} - ${expired.length}, 0)`,
       updatedAt: now,
     })
-    .where(eq(analysisCreditMonths.periodStart, periodStart))
+    .where(
+      and(
+        eq(analysisCreditMonths.userId, userId),
+        eq(analysisCreditMonths.periodStart, periodStart),
+      ),
+    )
 }
 
 async function getStatusInTransaction(
   tx: any,
+  userId: string,
   periodStart: string,
 ): Promise<CreditStatus> {
   const [row] = await tx
@@ -115,15 +143,20 @@ async function getStatusInTransaction(
       reservedCount: analysisCreditMonths.reservedCount,
     })
     .from(analysisCreditMonths)
-    .where(eq(analysisCreditMonths.periodStart, periodStart))
+    .where(
+      and(
+        eq(analysisCreditMonths.userId, userId),
+        eq(analysisCreditMonths.periodStart, periodStart),
+      ),
+    )
 
   if (!row) {
     return {
-      limit: MONTHLY_CREDIT_LIMIT,
+      limit: FREE_CREDIT_LIMIT,
       periodStart,
       consumed: 0,
       reserved: 0,
-      remaining: MONTHLY_CREDIT_LIMIT,
+      remaining: FREE_CREDIT_LIMIT,
       exhausted: false,
     }
   }
@@ -135,19 +168,21 @@ function emitCreditsUpdated(status: CreditStatus) {
   emitAppEvent('credits:updated', status)
 }
 
-export async function getCreditStatus(now = new Date()): Promise<CreditStatus> {
+export async function getCreditStatus(userId: string, now = new Date()): Promise<CreditStatus> {
   const db = useDB()
   const periodStart = toPeriodStartUTC(now)
+  const creditLimit = await getCreditLimitForUser(userId)
 
   return db.transaction(async (tx) => {
-    await ensureCurrentPeriodRow(tx, periodStart)
-    await releaseExpiredReservations(tx, periodStart, now)
-    return getStatusInTransaction(tx, periodStart)
+    await ensureCurrentPeriodRow(tx, userId, periodStart, creditLimit)
+    await releaseExpiredReservations(tx, userId, periodStart, now)
+    return getStatusInTransaction(tx, userId, periodStart)
   })
 }
 
 export async function reserveCredit(input: {
   newsletterId: string
+  userId: string
   source: AnalysisCreditSource
   now?: Date
 }): Promise<CreditReservation> {
@@ -155,9 +190,11 @@ export async function reserveCredit(input: {
   const now = input.now ?? new Date()
   const periodStart = toPeriodStartUTC(now)
 
+  const creditLimit = await getCreditLimitForUser(input.userId)
+
   const result = await db.transaction(async (tx) => {
-    await ensureCurrentPeriodRow(tx, periodStart)
-    await releaseExpiredReservations(tx, periodStart, now)
+    await ensureCurrentPeriodRow(tx, input.userId, periodStart, creditLimit)
+    await releaseExpiredReservations(tx, input.userId, periodStart, now)
 
     const updatedRows = await tx
       .update(analysisCreditMonths)
@@ -167,6 +204,7 @@ export async function reserveCredit(input: {
       })
       .where(
         and(
+          eq(analysisCreditMonths.userId, input.userId),
           eq(analysisCreditMonths.periodStart, periodStart),
           sql`${analysisCreditMonths.reservedCount} + ${analysisCreditMonths.consumedCount} < ${analysisCreditMonths.creditLimit}`,
         ),
@@ -179,7 +217,7 @@ export async function reserveCredit(input: {
       })
 
     if (!updatedRows.length) {
-      const status = await getStatusInTransaction(tx, periodStart)
+      const status = await getStatusInTransaction(tx, input.userId, periodStart)
       console.warn(
         `[credits] reserve denied: exhausted for period ${status.periodStart} (consumed=${status.consumed}, reserved=${status.reserved}, limit=${status.limit})`,
       )
@@ -189,6 +227,7 @@ export async function reserveCredit(input: {
     const [reservation] = await tx
       .insert(analysisCreditReservations)
       .values({
+        userId: input.userId,
         periodStart,
         newsletterId: input.newsletterId,
         source: input.source,
@@ -235,12 +274,14 @@ async function finalizeReservation(
       )
       .returning({
         periodStart: analysisCreditReservations.periodStart,
+        userId: analysisCreditReservations.userId,
       })
 
     if (!finalizedRows.length) {
       const [existingReservation] = await tx
         .select({
           periodStart: analysisCreditReservations.periodStart,
+          userId: analysisCreditReservations.userId,
         })
         .from(analysisCreditReservations)
         .where(eq(analysisCreditReservations.id, reservationId))
@@ -249,7 +290,7 @@ async function finalizeReservation(
         throw new Error(`Credit reservation ${reservationId} not found`)
       }
 
-      return getStatusInTransaction(tx, existingReservation.periodStart)
+      return getStatusInTransaction(tx, existingReservation.userId, existingReservation.periodStart)
     }
 
     changed = true
@@ -264,7 +305,12 @@ async function finalizeReservation(
             : analysisCreditMonths.consumedCount,
         updatedAt: now,
       })
-      .where(eq(analysisCreditMonths.periodStart, finalizedRows[0].periodStart))
+      .where(
+        and(
+          eq(analysisCreditMonths.userId, finalizedRows[0].userId),
+          eq(analysisCreditMonths.periodStart, finalizedRows[0].periodStart),
+        ),
+      )
       .returning({
         periodStart: analysisCreditMonths.periodStart,
         creditLimit: analysisCreditMonths.creditLimit,

@@ -1,22 +1,29 @@
-import { count, sql, desc, isNotNull } from 'drizzle-orm'
+import { and, count, sql, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import { useDB } from '../../database'
 import { newsletters, problems, problemClusters } from '../../database/schema'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const db = useDB()
 
-  const [newsletterCount] = await db.select({ count: count() }).from(newsletters)
-  const [problemCount] = await db.select({ count: count() }).from(problems)
-  const [clusterCount] = await db.select({ count: count() }).from(problemClusters)
+  const userFilter = and(eq(newsletters.userId, userId), isNull(newsletters.deletedAt))!
+  const problemUserFilter = eq(problems.userId, userId)
+  const clusterUserFilter = eq(problemClusters.userId, userId)
+
+  const [newsletterCount] = await db.select({ count: count() }).from(newsletters).where(userFilter)
+  const [problemCount] = await db.select({ count: count() }).from(problems).where(problemUserFilter)
+  const [clusterCount] = await db.select({ count: count() }).from(problemClusters).where(clusterUserFilter)
 
   const severityBreakdown = await db
     .select({ severity: problems.severity, count: count() })
     .from(problems)
+    .where(problemUserFilter)
     .groupBy(problems.severity)
 
   const categoryBreakdown = await db
     .select({ category: problems.category, count: count() })
     .from(problems)
+    .where(problemUserFilter)
     .groupBy(problems.category)
     .orderBy(sql`count(*) DESC`)
     .limit(10)
@@ -29,7 +36,7 @@ export default defineEventHandler(async () => {
       analyzedAt: newsletters.analyzedAt,
     })
     .from(newsletters)
-    .where(isNotNull(newsletters.analyzedAt))
+    .where(and(userFilter, isNotNull(newsletters.analyzedAt)))
     .orderBy(desc(newsletters.analyzedAt))
     .limit(5)
 

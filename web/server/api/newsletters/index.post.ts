@@ -1,9 +1,10 @@
 import { useDB } from '../../database'
 import { newsletters } from '../../database/schema'
-import { parseHtml, extractSubjectFromHtml } from '../../services/parser'
+import { extractSubjectFromHtml, htmlToMarkdown } from '../../services/parser'
 import { emitAppEvent } from '../../utils/eventBus'
 
 export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const db = useDB()
   const contentType = getHeader(event, 'content-type') || ''
 
@@ -18,20 +19,18 @@ export default defineEventHandler(async (event) => {
     const filename = filePart.filename || 'upload'
     const ext = filename.split('.').pop()?.toLowerCase() || 'txt'
 
-    let textBody = raw
-    let htmlBody = ''
+    let markdownBody = raw
     let subject = ''
 
     if (ext === 'html' || ext === 'htm') {
-      htmlBody = raw
       subject = extractSubjectFromHtml(raw)
-      textBody = parseHtml(raw)
+      markdownBody = htmlToMarkdown(raw)
     }
 
     const [row] = await db.insert(newsletters).values({
+      userId,
       subject,
-      htmlBody,
-      textBody,
+      markdownBody,
       sourceType: 'file',
     }).returning()
 
@@ -42,16 +41,16 @@ export default defineEventHandler(async (event) => {
 
   // JSON body
   const body = await readBody(event)
-  if (!body?.textBody) {
-    throw createError({ statusCode: 400, statusMessage: 'textBody is required' })
+  if (!body?.markdownBody) {
+    throw createError({ statusCode: 400, statusMessage: 'markdownBody is required' })
   }
 
   const [row] = await db.insert(newsletters).values({
+    userId,
     subject: body.subject || '',
     fromEmail: body.fromEmail || '',
     fromName: body.fromName || '',
-    htmlBody: body.htmlBody || '',
-    textBody: body.textBody,
+    markdownBody: body.markdownBody,
     sourceType: 'file',
   }).returning()
 

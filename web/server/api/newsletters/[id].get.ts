@@ -1,9 +1,10 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { NewsletterDetail } from '#shared/types/newsletter'
 import { useDB } from '../../database'
 import { newsletters, problems } from '../../database/schema'
 
 export default defineEventHandler(async (event) => {
+  const { userId } = await requireAuth(event)
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Missing id' })
 
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const [newsletter] = await db
     .select()
     .from(newsletters)
-    .where(eq(newsletters.id, id))
+    .where(and(eq(newsletters.id, id), eq(newsletters.userId, userId)))
 
   if (!newsletter) {
     throw createError({ statusCode: 404, statusMessage: 'Newsletter not found' })

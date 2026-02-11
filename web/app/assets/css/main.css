@@ -3,29 +3,24 @@
 
 
 @theme static {
- --color-amulet-50: #f4f7f2;
-  --color-amulet-100: #e5ecdf;
-  --color-amulet-200: #cbd9c1;
-  --color-amulet-300: #a5bd98;
-  --color-amulet-400: #87a679;
-  --color-amulet-500: #597f4a;
-  --color-amulet-600: #436437;
-  --color-amulet-700: #34502c;
-  --color-amulet-800: #2b4025;
-  --color-amulet-900: #24351f;
-  --color-amulet-950: #131e10;
-
+  --color-snuff-50: #faf6fe;
+  --color-snuff-100: #f2eafd;
+  --color-snuff-200: #ebdefc;
+  --color-snuff-300: #d5baf8;
+  --color-snuff-400: #bc8ef2;
+  --color-snuff-500: #a262ea;
+  --color-snuff-600: #8b42db;
+  --color-snuff-700: #7730c0;
+  --color-snuff-800: #652c9d;
+  --color-snuff-900: #53257e;
+  --color-snuff-950: #370f5c;
 }
 @theme {
-  --font-sans: 'Lato', sans-serif;
-
+  --font-sans: 'Alata', sans-serif;
+  --font-serif: 'Cardo', serif;
 }
 
 :root {
   --ui-radius: 0.25rem;
-  --ui-primary: black;
 }
 
-.dark {
-  --ui-primary: white;
-}
