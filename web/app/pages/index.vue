@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { AccordionItem, ButtonProps, NavigationMenuItem } from '@nuxt/ui'
-import { authClient } from '~/lib/auth-client'
 
 definePageMeta({ layout: false })
 
@@ -162,33 +161,29 @@ interface PlanSource {
   highlight?: boolean
   scale?: boolean
   tagline?: string
+  earlyBird?: boolean
 }
 
 async function handlePlanUpgrade(plan: string) {
+  const annual = billingModel.value === 'yearly'
+  const upgradePath = `/app/upgrade?plan=${encodeURIComponent(plan)}&annual=${annual ? 'true' : 'false'}&source=landing-pricing`
+
   if (!session.value.authenticated) {
-    await navigateTo('/register')
+    await navigateTo(`/register?redirect=${encodeURIComponent(upgradePath)}`)
     return
   }
-  try {
-    await authClient.subscription.upgrade({
-      plan,
-      annual: billingModel.value === 'yearly',
-      successUrl: '/app/settings',
-      cancelUrl: '/#pricing',
-    })
-  }
-  catch (e: any) {
-    console.error('Stripe checkout error:', e)
-  }
+
+  await navigateTo(upgradePath)
 }
 
 const planSources = ref<PlanSource[]>([
   {
     title: 'Starter',
+    planId: 'starter',
     description: 'For solo founders getting started with newsletter signal mining.',
     monthlyPrice: '$0',
     yearlyPrice: '$0',
-    billingPeriod: 'free forever',
+    billingPeriod: 'free',
     features: [
       '50 newsletter analyses per month',
       'Core opportunity dashboard',
@@ -196,10 +191,9 @@ const planSources = ref<PlanSource[]>([
       '1 workspace',
     ],
     button: {
-      label: 'Start free',
+      label: 'Choose Starter',
       color: 'neutral',
       variant: 'subtle',
-      to: '/register',
     },
   },
   {
@@ -215,6 +209,7 @@ const planSources = ref<PlanSource[]>([
     highlight: true,
     scale: true,
     tagline: 'Best value for consistent insight',
+    earlyBird: true,
     features: [
       '500 newsletter analyses per month',
       'Trend and severity tracking',
@@ -236,6 +231,7 @@ const planSources = ref<PlanSource[]>([
     originalYearlyPrice: '$990',
     billingPeriod: '2 months free',
     badge: 'Early bird -61%',
+    earlyBird: true,
     features: [
       '2,000 newsletter analyses per month',
       'Topic-based segmentation',
@@ -265,7 +261,11 @@ const pricingPlans = computed(() => {
       price: cycleOriginalPrice ?? cyclePrice,
       discount: cycleOriginalPrice ? cyclePrice : undefined,
       billingCycle: billingModel.value === 'yearly' ? '/year' : '/month',
-      billingPeriod: billingModel.value === 'yearly' ? `${plan.billingPeriod} (early bird)` : 'billed monthly (early bird)',
+      billingPeriod: plan.earlyBird
+        ? billingModel.value === 'yearly'
+          ? `${plan.billingPeriod} (early bird)`
+          : 'billed monthly (early bird)'
+        : plan.billingPeriod,
       badge: plan.badge,
       highlight: plan.highlight,
       scale: plan.scale,

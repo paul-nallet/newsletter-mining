@@ -5,10 +5,14 @@ import { authClient } from '~/lib/auth-client'
 
 definePageMeta({ layout: false })
 
+const route = useRoute()
 const toast = useToast()
 const signingInWithGoogle = ref(false)
 const runtimeConfig = useRuntimeConfig()
 const isGoogleAuthEnabled = computed(() => runtimeConfig.public.googleAuthEnabled === 'true')
+const redirectTarget = computed(() => {
+  return typeof route.query.redirect === 'string' ? route.query.redirect : '/app/upgrade'
+})
 
 const schema = z.object({
   name: z.string().min(2, 'Must be at least 2 characters'),
@@ -41,7 +45,7 @@ async function handleRegister(event: FormSubmitEvent<Schema>) {
   // Refresh session state so the middleware sees authenticated: true immediately
   await useAuthSession().fetch()
 
-  await navigateTo('/app')
+  await navigateTo(redirectTarget.value)
 }
 
 async function signInWithGoogle() {
@@ -50,8 +54,8 @@ async function signInWithGoogle() {
   try {
     const result = await authClient.signIn.social({
       provider: 'google',
-      callbackURL: '/app',
-      newUserCallbackURL: '/app',
+      callbackURL: redirectTarget.value,
+      newUserCallbackURL: redirectTarget.value,
       errorCallbackURL: '/register',
     })
 
@@ -80,6 +84,11 @@ const providers = computed<ButtonProps[]>(() => {
     disabled: signingInWithGoogle.value,
     onClick: signInWithGoogle,
   }]
+})
+
+const loginLink = computed(() => {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+  return redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login'
 })
 
 const fields = ref<AuthFormField[]>([
@@ -121,7 +130,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 </UCard>
     <p class="text-sm text-gray-500 dark:text-gray-400">
       Already have an account?
-      <NuxtLink to="/login" class="text-primary-600 dark:text-primary-400 underline">Sign in</NuxtLink>
+      <NuxtLink :to="loginLink" class="text-primary-600 dark:text-primary-400 underline">Sign in</NuxtLink>
     </p>
   </div>
 </template>

@@ -25,6 +25,14 @@ uv sync
 - `BETTER_AUTH_URL`
 - `GOOGLE_CLIENT_ID` (optional, for Google SSO)
 - `GOOGLE_CLIENT_SECRET` (optional, for Google SSO)
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_STARTER_MONTHLY`
+- `STRIPE_PRICE_STARTER_YEARLY` (optional, falls back to monthly Starter price)
+- `STRIPE_PRICE_GROWTH_MONTHLY`
+- `STRIPE_PRICE_GROWTH_YEARLY`
+- `STRIPE_PRICE_STUDIO_MONTHLY`
+- `STRIPE_PRICE_STUDIO_YEARLY`
 
 ## Usage
 
@@ -90,6 +98,15 @@ To enable Google login:
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
 4. Ensure `BETTER_AUTH_URL` matches your app domain in production to avoid `redirect_uri_mismatch`.
+
+### Billing flow (Starter 0)
+
+- The app now supports a Stripe `starter` plan at `$0` (lightweight Stripe unification).
+- Flow is `Auth -> /app/upgrade -> Stripe Checkout`.
+- Growth and Studio use a 14-day free trial (card required at checkout).
+- Starter has no free trial and is billed at `$0`.
+- Downgrade from paid plan is done at period end via `Passer a Starter (fin de periode)` in Settings.
+- In lightweight mode, users may temporarily have no active subscription after a paid subscription ends.
 
 ### Auth behavior (MVP)
 

@@ -32,6 +32,24 @@ const planLabels: Record<string, string> = {
 const planLabel = computed(() => planLabels[currentPlanName.value] ?? currentPlanName.value)
 
 const upgradingTo = ref<string | null>(null)
+const schedulingDowngrade = ref(false)
+const restoringDowngrade = ref(false)
+
+function toDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null
+  const parsed = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatDate(value: string | Date | null | undefined): string {
+  const parsed = toDate(value)
+  if (!parsed) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(parsed)
+}
 
 async function upgradePlan(plan: string) {
   upgradingTo.value = plan
@@ -56,6 +74,54 @@ async function openBillingPortal() {
   }
   catch (e: any) {
     toast.add({ title: 'Could not open billing portal', description: e?.message || 'Unknown error', color: 'error' })
+  }
+}
+
+async function scheduleDowngradeToStarter() {
+  if (!activeSubscription.value || schedulingDowngrade.value) return
+
+  schedulingDowngrade.value = true
+  try {
+    await authClient.subscription.cancel({
+      returnUrl: '/app/settings',
+    })
+  }
+  catch (e: any) {
+    toast.add({
+      title: 'Downgrade request failed',
+      description: e?.message || 'Unknown error',
+      color: 'error',
+    })
+  }
+  finally {
+    schedulingDowngrade.value = false
+  }
+}
+
+async function restoreDowngrade() {
+  if (!activeSubscription.value || restoringDowngrade.value) return
+
+  restoringDowngrade.value = true
+  try {
+    await authClient.subscription.restore({
+      returnUrl: '/app/settings',
+    })
+    await refreshSubscriptions()
+    toast.add({
+      title: 'Downgrade canceled',
+      description: 'Your subscription will continue as normal.',
+      color: 'success',
+    })
+  }
+  catch (e: any) {
+    toast.add({
+      title: 'Could not restore subscription',
+      description: e?.message || 'Unknown error',
+      color: 'error',
+    })
+  }
+  finally {
+    restoringDowngrade.value = false
   }
 }
 
@@ -231,7 +297,10 @@ async function resetDatabase() {
               <p class="text-sm font-medium">Current plan</p>
               <p class="text-lg font-semibold">{{ planLabel }}</p>
               <p v-if="activeSubscription?.cancelAtPeriodEnd" class="text-xs text-[var(--ui-warning)]">
-                Cancels at end of billing period
+                Cancels at end of billing period ({{ formatDate(activeSubscription?.periodEnd) }})
+              </p>
+              <p v-else-if="activeSubscription?.periodEnd" class="text-xs text-[var(--ui-text-muted)]">
+                Current period ends on {{ formatDate(activeSubscription?.periodEnd) }}
               </p>
             </div>
             <UBadge v-if="activeSubscription" :color="activeSubscription.status === 'active' ? 'success' : 'warning'" variant="subtle">
@@ -251,8 +320,33 @@ async function resetDatabase() {
                 color="neutral"
                 @click="openBillingPortal"
               />
+              <UButton
+                v-if="activeSubscription.cancelAtPeriodEnd"
+                label="Keep current plan"
+                icon="i-lucide-rotate-ccw"
+                variant="outline"
+                color="neutral"
+                :loading="restoringDowngrade"
+                @click="restoreDowngrade"
+              />
+              <UButton
+                v-else-if="activeSubscription.plan !== 'starter'"
+                label="Passer a Starter (fin de periode)"
+                icon="i-lucide-arrow-down-circle"
+                variant="outline"
+                color="warning"
+                :loading="schedulingDowngrade"
+                @click="scheduleDowngradeToStarter"
+              />
             </template>
             <template v-else>
+              <UButton
+                label="Activer Starter ($0)"
+                icon="i-lucide-check-circle"
+                variant="soft"
+                color="neutral"
+                to="/app/upgrade?plan=starter&annual=false"
+              />
               <UButton
                 label="Upgrade to Growth"
                 icon="i-lucide-arrow-up-circle"

@@ -83,6 +83,11 @@ const providers = computed<ButtonProps[]>(() => {
   }]
 })
 
+const registerLink = computed(() => {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+  return redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : '/register'
+})
+
 const fields = ref<AuthFormField[]>([
   {
     name: 'email',
@@ -120,7 +125,7 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
 </UCard>
     <p class="text-sm text-gray-500 dark:text-gray-400">
       Don't have an account?
-      <NuxtLink to="/register" class="text-primary-600 dark:text-primary-400 underline">Sign up</NuxtLink>
+      <NuxtLink :to="registerLink" class="text-primary-600 dark:text-primary-400 underline">Sign up</NuxtLink>
     </p>
   </div>
 </template>

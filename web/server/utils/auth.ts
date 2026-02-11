@@ -72,18 +72,33 @@ export const auth = betterAuth({
         enabled: true,
         plans: [
           {
+            name: 'starter',
+            priceId: process.env.STRIPE_PRICE_STARTER_MONTHLY || '',
+            annualDiscountPriceId: process.env.STRIPE_PRICE_STARTER_YEARLY
+              || process.env.STRIPE_PRICE_STARTER_MONTHLY
+              || undefined,
+            limits: { credits: 50 },
+          },
+          {
             name: 'growth',
             priceId: process.env.STRIPE_PRICE_GROWTH_MONTHLY || '',
             annualDiscountPriceId: process.env.STRIPE_PRICE_GROWTH_YEARLY || undefined,
+            freeTrial: { days: 14 },
             limits: { credits: 500 },
           },
           {
             name: 'studio',
             priceId: process.env.STRIPE_PRICE_STUDIO_MONTHLY || '',
             annualDiscountPriceId: process.env.STRIPE_PRICE_STUDIO_YEARLY || undefined,
+            freeTrial: { days: 14 },
             limits: { credits: 2000 },
           },
         ],
+        getCheckoutSessionParams: ({ plan }) => ({
+          params: {
+            payment_method_collection: plan.name === 'starter' ? 'if_required' : 'always',
+          },
+        }),
         onSubscriptionComplete: async ({ subscription, plan }) => {
           await syncCreditLimit(subscription.referenceId, plan?.name ?? null)
         },
