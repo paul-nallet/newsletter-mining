@@ -23,6 +23,8 @@ uv sync
 - `CLUSTER_SIMILARITY_THRESHOLD` (default `0.78`, lower = broader clusters, higher = stricter clusters)
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
+- `GOOGLE_CLIENT_ID` (optional, for Google SSO)
+- `GOOGLE_CLIENT_SECRET` (optional, for Google SSO)
 
 ## Usage
 
@@ -75,6 +77,19 @@ UPDATE "subscription" SET "status" = 'incomplete' WHERE "status" IS NULL;
 ```
 
 Then deploy the repository migration files and run `/app/db-migrate.sh` (or start the container with migrations enabled).
+
+### Google SSO setup
+
+To enable Google login:
+
+1. Create OAuth credentials in Google Cloud Console.
+2. Add redirect URIs:
+   - Local: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://your-domain.com/api/auth/callback/google`
+3. Set env vars:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+4. Ensure `BETTER_AUTH_URL` matches your app domain in production to avoid `redirect_uri_mismatch`.
 
 ### Auth behavior (MVP)
 

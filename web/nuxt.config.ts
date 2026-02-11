@@ -22,6 +22,12 @@ export default defineNuxtConfig({
     stripePriceGrowthYearly: process.env.NUXT_STRIPE_PRICE_GROWTH_YEARLY || process.env.STRIPE_PRICE_GROWTH_YEARLY || '',
     stripePriceStudioMonthly: process.env.NUXT_STRIPE_PRICE_STUDIO_MONTHLY || process.env.STRIPE_PRICE_STUDIO_MONTHLY || '',
     stripePriceStudioYearly: process.env.NUXT_STRIPE_PRICE_STUDIO_YEARLY || process.env.STRIPE_PRICE_STUDIO_YEARLY || '',
+    public: {
+      googleAuthEnabled: ((process.env.NUXT_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID)
+        && (process.env.NUXT_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET))
+        ? 'true'
+        : 'false',
+    },
   },
 
   nitro: {

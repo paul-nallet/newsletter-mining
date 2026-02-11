@@ -34,6 +34,13 @@ const db = new Kysely({
 })
 
 const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || '')
+const googleClientId = process.env.NUXT_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''
+const googleClientSecret = process.env.NUXT_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || ''
+const isGoogleOAuthEnabled = Boolean(googleClientId && googleClientSecret)
+
+if (!isGoogleOAuthEnabled) {
+  console.info('[auth] Google SSO disabled: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable it.')
+}
 
 export const auth = betterAuth({
   secret,
@@ -46,6 +53,16 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  ...(isGoogleOAuthEnabled
+    ? {
+        socialProviders: {
+          google: {
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+          },
+        },
+      }
+    : {}),
   plugins: [
     stripe({
       stripeClient,
