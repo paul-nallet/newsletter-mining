@@ -3,49 +3,80 @@ import type { AccordionItem, ButtonProps, NavigationMenuItem } from '@nuxt/ui'
 
 definePageMeta({ layout: false })
 
+interface SignupAvailabilityResponse {
+  isOpen: boolean
+}
+
 const route = useRoute()
 const requestURL = useRequestURL()
 const canonical = computed(() => new URL(route.path, requestURL.origin).toString())
+const registerPath = '/register?redirect=/app/upgrade'
 
 useHead({
   link: [{ rel: 'canonical', href: canonical }],
 })
 
 useSeoMeta({
-  title: 'Newsletter Mining - Find hidden value in unread newsletters',
-  description: 'Too many newsletters and no time to read them all? Turn inbox noise into clear product opportunities.',
-  ogTitle: 'Newsletter Mining - Find hidden value in unread newsletters',
-  ogDescription: 'Turn inbox noise into clear product opportunities. Extract recurring problems from newsletters with AI.',
+  title: 'Newsletter Mining | Find Product Ideas in Unread Newsletters',
+  description: 'Stop hoarding newsletters. Extract recurring pain points, validate demand, and decide what to build next.',
+  ogTitle: 'Newsletter Mining | Find Product Ideas in Unread Newsletters',
+  ogDescription: 'Extract recurring pain points from newsletters and turn inbox noise into product direction.',
   ogImage: '/images/og-cover.png',
   ogType: 'website',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Newsletter Mining',
-  twitterDescription: 'Turn inbox noise into clear product opportunities.',
+  twitterTitle: 'Newsletter Mining | Product Signal from Newsletters',
+  twitterDescription: 'Extract recurring pain points and pick stronger product bets.',
   twitterImage: '/images/og-cover.png',
 })
 
 const { session } = useAuthSession()
-
+const { data: signupAvailability } = await useFetch<SignupAvailabilityResponse>('/api/auth/signup-open', { key: 'signup-open' })
 const { data: waitlistCount } = await useFetch('/api/waitlist/count', { key: 'waitlist-count' })
+const signupOpen = computed(() => signupAvailability.value?.isOpen !== false)
 
-const navItems = ref<NavigationMenuItem[]>([
+const navItems = computed<NavigationMenuItem[]>(() => ([
   { label: 'Product', to: '#features' },
-  { label: 'By audience', to: '#audiences' },
-  { label: 'How it works', to: '#pipeline' },
+  { label: 'For founders', to: '#audiences' },
+  { label: 'How it helps', to: '#pipeline' },
   { label: 'Pricing', to: '#pricing' },
-  { label: 'Waitlist', to: '#waitlist' },
+  { label: signupOpen.value ? 'Get access' : 'Waitlist', to: signupOpen.value ? '#get-access' : '#waitlist' },
   { label: 'FAQ', to: '#faq' },
-])
+]))
+
+const primaryHeaderButton = computed<ButtonProps>(() => (
+  signupOpen.value
+    ? {
+        label: 'Create account',
+        to: registerPath,
+        color: 'neutral',
+      }
+    : {
+        label: 'Join waitlist',
+        to: '#waitlist',
+        color: 'neutral',
+      }
+))
 
 const heroLinks = computed<ButtonProps[]>(() => {
-  const links: ButtonProps[] = [
-    {
+  const links: ButtonProps[] = []
+
+  if (signupOpen.value) {
+    links.push({
+      label: 'Create account',
+      to: registerPath,
+      color: 'neutral',
+      trailingIcon: 'i-lucide-arrow-right',
+    })
+  }
+  else {
+    links.push({
       label: 'Join waitlist',
       to: '#waitlist',
       color: 'neutral',
       trailingIcon: 'i-lucide-arrow-right',
-    },
-  ]
+    })
+  }
+
   if (session.value.authenticated) {
     links.push({
       label: 'Open dashboard',
@@ -54,32 +85,41 @@ const heroLinks = computed<ButtonProps[]>(() => {
       variant: 'subtle',
     })
   }
+  else {
+    links.push({
+      label: 'Sign in',
+      to: '/login',
+      color: 'neutral',
+      variant: 'ghost',
+    })
+  }
+
   return links
 })
 
 const featureCards = [
   {
     id: 'capture',
-    title: 'Capture everything automatically',
-    description: 'Newsletters flow in without copy-paste, so nothing important gets lost.',
+    title: 'End inbox overload',
+    description: 'Stop juggling saved emails and random tabs. Keep your newsletter signal in one place.',
     icon: 'i-lucide-inbox',
   },
   {
     id: 'extract',
-    title: 'Pull out real customer pain',
-    description: 'We surface recurring frustrations and needs hidden in long email threads.',
+    title: 'Extract recurring customer pain',
+    description: 'Spot the same frustration showing up across senders before it becomes obvious.',
     icon: 'i-lucide-search-check',
   },
   {
     id: 'group',
-    title: 'Group similar signals',
-    description: 'Related problems are grouped so patterns are obvious at a glance.',
+    title: 'See patterns, not noise',
+    description: 'When the same pain repeats across sources, it becomes obvious fast.',
     icon: 'i-lucide-layers-3',
   },
   {
     id: 'decide',
-    title: 'Prioritize what to build next',
-    description: 'See what appears most often, what hurts most, and what is rising fast.',
+    title: 'Pick stronger product bets',
+    description: 'Decide with evidence from repeated signals, not one noisy anecdote.',
     icon: 'i-lucide-target',
   },
 ] as const
@@ -87,55 +127,55 @@ const featureCards = [
 const pipelineCards = [
   {
     id: 'step-1',
-    title: '1. Collect',
-    description: 'Your newsletters are collected in one place in the background.',
+    title: '1. Stop the overwhelm',
+    description: 'Bring scattered newsletters into one weekly view so important signal stops slipping away.',
     icon: 'i-lucide-inbox',
-    tag: 'No manual sorting',
+    tag: 'Calmer research loop',
   },
   {
     id: 'step-2',
-    title: '2. Detect',
-    description: 'The system finds repeated pain points and key quotes for context.',
+    title: '2. Spot repeated pain',
+    description: 'See which frustrations keep coming back and why they matter to real buyers.',
     icon: 'i-lucide-scan-text',
-    tag: 'Clear and readable output',
+    tag: 'Real demand signal',
   },
   {
     id: 'step-3',
-    title: '3. Act',
-    description: 'You get ranked opportunities so product decisions are faster and safer.',
+    title: '3. Back the right bet',
+    description: 'Prioritize ideas tied to recurring pain, not the loudest opinion of the week.',
     icon: 'i-lucide-chart-no-axes-column-increasing',
-    tag: 'Focus on what matters',
+    tag: 'Build with conviction',
   },
 ] as const
 
 const audienceCards = [
   {
     id: 'indie-hackers',
-    title: 'Indie Hackers',
-    description: 'Find your next side project by extracting recurring pain points from unread newsletters.',
+    title: 'Indie Founders (Primary)',
+    description: 'Find what to build next by turning unread newsletters into recurring pain-point signal.',
     to: '/for-indie-hackers',
-    cta: 'See Indie page',
+    cta: 'See founder page',
   },
   {
     id: 'vcs',
-    title: 'VCs',
-    description: 'Detect emerging market gaps from newsletter signals before they become mainstream.',
+    title: 'VCs (Secondary)',
+    description: 'Track early market pain from niche newsletters to support faster thesis updates.',
     to: '/for-vcs',
-    cta: 'See VC page',
+    cta: 'See VC use case',
   },
   {
     id: 'product-managers',
-    title: 'Product Managers',
-    description: 'Prioritize roadmap decisions with repeated, evidence-based pain signals.',
+    title: 'Product Managers (Secondary)',
+    description: 'Add external pain-point signal to roadmap prioritization without another research sprint.',
     to: '/for-product-managers',
-    cta: 'See PM page',
+    cta: 'See PM use case',
   },
   {
     id: 'consultants',
-    title: 'Consultants',
-    description: 'Bring stronger insight to client calls with trend and pain-point detection.',
+    title: 'Consultants (Secondary)',
+    description: 'Bring clients clear market pain trends instead of generic newsletter summaries.',
     to: '/for-consultants',
-    cta: 'See Consultant page',
+    cta: 'See consultant use case',
   },
 ] as const
 
@@ -152,8 +192,6 @@ interface PlanSource {
   description: string
   monthlyPrice: string
   yearlyPrice: string
-  originalMonthlyPrice?: string
-  originalYearlyPrice?: string
   billingPeriod: string
   features: string[]
   button: Record<string, any>
@@ -161,7 +199,6 @@ interface PlanSource {
   highlight?: boolean
   scale?: boolean
   tagline?: string
-  earlyBird?: boolean
 }
 
 async function handlePlanUpgrade(plan: string) {
@@ -180,10 +217,10 @@ const planSources = ref<PlanSource[]>([
   {
     title: 'Starter',
     planId: 'starter',
-    description: 'For solo founders getting started with newsletter signal mining.',
+    description: 'For founders validating their first signal loop.',
     monthlyPrice: '$0',
     yearlyPrice: '$0',
-    billingPeriod: 'free',
+    billingPeriod: 'Always free',
     features: [
       '50 newsletter analyses per month',
       'Core opportunity dashboard',
@@ -199,17 +236,14 @@ const planSources = ref<PlanSource[]>([
   {
     title: 'Growth',
     planId: 'growth',
-    description: 'For non-technical operators who need weekly product insights.',
+    description: 'For indie founders running weekly opportunity discovery.',
     monthlyPrice: '$19',
     yearlyPrice: '$190',
-    originalMonthlyPrice: '$39',
-    originalYearlyPrice: '$390',
-    billingPeriod: '2 months free',
-    badge: 'Most popular · Early bird -51%',
+    billingPeriod: 'Monthly or yearly billing',
+    badge: 'Most popular',
     highlight: true,
     scale: true,
-    tagline: 'Best value for consistent insight',
-    earlyBird: true,
+    tagline: 'Built for consistent signal review',
     features: [
       '500 newsletter analyses per month',
       'Trend and severity tracking',
@@ -224,14 +258,10 @@ const planSources = ref<PlanSource[]>([
   {
     title: 'Studio',
     planId: 'studio',
-    description: 'For teams tracking multiple topics and bigger newsletter volumes.',
+    description: 'For high-volume operators tracking many topics.',
     monthlyPrice: '$39',
     yearlyPrice: '$390',
-    originalMonthlyPrice: '$99',
-    originalYearlyPrice: '$990',
-    billingPeriod: '2 months free',
-    badge: 'Early bird -61%',
-    earlyBird: true,
+    billingPeriod: 'Monthly or yearly billing',
     features: [
       '2,000 newsletter analyses per month',
       'Topic-based segmentation',
@@ -249,7 +279,6 @@ const planSources = ref<PlanSource[]>([
 const pricingPlans = computed(() => {
   return planSources.value.map((plan) => {
     const cyclePrice = billingModel.value === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice
-    const cycleOriginalPrice = billingModel.value === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice
 
     const button = plan.planId
       ? { ...plan.button, onClick: () => handlePlanUpgrade(plan.planId!) }
@@ -258,14 +287,9 @@ const pricingPlans = computed(() => {
     return {
       title: plan.title,
       description: plan.description,
-      price: cycleOriginalPrice ?? cyclePrice,
-      discount: cycleOriginalPrice ? cyclePrice : undefined,
+      price: cyclePrice,
       billingCycle: billingModel.value === 'yearly' ? '/year' : '/month',
-      billingPeriod: plan.earlyBird
-        ? billingModel.value === 'yearly'
-          ? `${plan.billingPeriod} (early bird)`
-          : 'billed monthly (early bird)'
-        : plan.billingPeriod,
+      billingPeriod: plan.billingPeriod,
       badge: plan.badge,
       highlight: plan.highlight,
       scale: plan.scale,
@@ -280,15 +304,15 @@ const pricingPlans = computed(() => {
 const faqItems = ref<AccordionItem[]>([
   {
     label: 'Do I need technical skills to use this?',
-    content: 'No. The product is designed for non-technical users. Setup is guided and the dashboard is plain-language.',
+    content: 'No. Setup is straightforward and the dashboard is built for non-technical founders.',
   },
   {
     label: 'What if I already have a large backlog of newsletters?',
-    content: 'You can import old newsletters and analyze them to find patterns you missed over time.',
+    content: 'Import and analyze older newsletters to surface patterns you have likely missed.',
   },
   {
     label: 'How quickly will I see value?',
-    content: 'Most users see recurring themes after their first analysis batch, then refine decisions week by week.',
+    content: 'Most founders see recurring themes after the first analysis batch, then refine bets week by week.',
   },
   {
     label: 'Is my inbox data protected?',
@@ -296,11 +320,11 @@ const faqItems = ref<AccordionItem[]>([
   },
   {
     label: 'What newsletters does it work with?',
-    content: 'Any newsletter you receive by email or can export as .html/.txt/.eml. Tech, business, marketing, indie hacking — the AI adapts to any topic.',
+    content: 'Any newsletter you receive by email or can export as .html/.txt/.eml. Tech, business, marketing, indie hacking - the AI adapts to any topic.',
   },
   {
     label: 'Can I connect my email directly?',
-    content: 'Yes, via Mailgun webhook. Newsletters are forwarded automatically — no manual import needed after setup.',
+    content: 'Yes, via Mailgun webhook. Newsletters are forwarded automatically - no manual import needed after setup.',
   },
   {
     label: 'What happens to my data if I cancel?',
@@ -318,7 +342,7 @@ const footerColumns = [
     children: [
       { label: 'Features', to: '#features' },
       { label: 'By audience', to: '#audiences' },
-      { label: 'How it works', to: '#pipeline' },
+      { label: 'How it helps', to: '#pipeline' },
       { label: 'Pricing', to: '#pricing' },
     ],
   },
@@ -360,23 +384,23 @@ const footerColumns = [
       <template #right>
         <UNavigationMenu :items="navItems" variant="link" class="hidden lg:block" />
         <UButton to="/login" color="neutral" variant="ghost" label="Login" class="hidden sm:inline-flex" />
-        <UButton to="#waitlist" color="neutral" label="Join waitlist" />
+        <UButton v-bind="primaryHeaderButton" />
       </template>
 
       <template #body>
         <UNavigationMenu :items="navItems" orientation="vertical" class="-mx-2.5" />
         <div class="mt-4 flex flex-wrap gap-2 px-2">
           <UButton to="/login" color="neutral" variant="ghost" label="Login" />
-          <UButton to="#waitlist" color="neutral" label="Join waitlist" />
+          <UButton v-bind="primaryHeaderButton" />
         </div>
       </template>
     </UHeader>
 
     <UMain>
       <UPageHero
-        headline="Too many newsletters. Not enough time."
-        title="Find hidden product opportunities in newsletters you no longer read."
-        description="Newsletter Mining turns inbox overload into clear, ranked opportunities so you can make better product bets faster."
+        headline="Stop hoarding newsletters. Start mining demand."
+        title="Turn unread newsletters into product ideas you can defend."
+        description="Newsletter Mining extracts recurring pain points from your backlog so you can pick what to build with evidence, not guesswork."
         :links="heroLinks"
         orientation="horizontal"
         :ui="{ container: 'py-16 lg:py-22' }"
@@ -413,15 +437,31 @@ const footerColumns = [
         </div>
 
         <div class="mt-6 max-w-xl">
-          <LandingWaitlistInlineForm
-            source="hero-section"
-            title="See hidden value in your unread newsletters"
-            description="Join the waitlist and get early beta access."
-            button-label="Join waitlist"
-          />
-          <p v-if="waitlistCount?.total" class="mt-3 text-center text-sm text-[var(--ui-text-muted)]">
-            {{ waitlistCount.total }} {{ waitlistCount.total === 1 ? 'founder' : 'founders' }} on the waitlist
-          </p>
+          <UCard v-if="signupOpen" class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90">
+            <div class="space-y-3">
+              <p class="text-sm font-semibold text-[var(--ui-text-highlighted)]">
+                Create your account and start analyzing today
+              </p>
+              <p class="text-sm text-[var(--ui-text-muted)]">
+                Skip inbox overwhelm. See recurring pain points in one dashboard.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <UButton :to="registerPath" color="neutral" label="Create account" />
+                <UButton to="/login" color="neutral" variant="ghost" label="Sign in" />
+              </div>
+            </div>
+          </UCard>
+          <template v-else>
+            <LandingWaitlistInlineForm
+              source="hero-section"
+              title="Get notified when signup reopens"
+              description="Join the waitlist and we will email you as soon as seats open."
+              button-label="Join waitlist"
+            />
+            <p v-if="waitlistCount?.total" class="mt-3 text-center text-sm text-[var(--ui-text-muted)]">
+              {{ waitlistCount.total }} {{ waitlistCount.total === 1 ? 'founder' : 'founders' }} on the waitlist
+            </p>
+          </template>
         </div>
       </UPageHero>
 
@@ -429,9 +469,9 @@ const footerColumns = [
 
       <UPageSection
         id="audiences"
-        headline="By audience"
-        title="Choose the page built for your workflow"
-        description="Each page has dedicated messaging, use cases, and waitlist tracking."
+        headline="For founders first"
+        title="Built for indie founders, with secondary playbooks for other teams"
+        description="Use the founder path by default, then explore role-specific pages when needed."
       >
         <UPageGrid class="w-full">
           <UPageCard
@@ -460,8 +500,8 @@ const footerColumns = [
       <UPageSection
         id="features"
         headline="Product"
-        title="Built for people who want insight, not technical complexity"
-        description="Everything is designed to make hidden value obvious in minutes."
+        title="Built for founders drowning in input and starved for clarity"
+        description="Less reading fatigue. Fewer random ideas. A clearer view of what customers repeatedly struggle with."
       >
         <UPageGrid class="w-full">
           <UPageCard
@@ -479,9 +519,9 @@ const footerColumns = [
 
       <UPageSection
         id="pipeline"
-        headline="How it works"
-        title="From inbox overload to clear product direction in 3 steps"
-        description="No complex workflow. Just a repeatable system you can trust every week."
+        headline="How it helps"
+        title="Turn newsletter overwhelm into clearer next bets"
+        description="One weekly loop focused on outcomes: reduce noise, surface recurring pain, and decide faster."
       >
         <LandingDataFlowAnimation />
 
@@ -511,7 +551,7 @@ const footerColumns = [
         id="pricing"
         headline="Pricing"
         title="Simple plans, clear limits"
-        description="Early bird pricing is live: up to 61% off for early users."
+        description="No inflated claims. Pick a plan based on the newsletter volume you actually process."
       >
         <template #links>
           <UTabs
@@ -537,10 +577,22 @@ const footerColumns = [
         </UPricingPlans>
 
         <div class="mx-auto mt-8 w-full max-w-2xl">
+          <UCard v-if="signupOpen" class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90">
+            <div class="space-y-3">
+              <p class="text-sm font-semibold text-[var(--ui-text-highlighted)]">
+                Ready to start mining your inbox?
+              </p>
+              <p class="text-sm text-[var(--ui-text-muted)]">
+                Create your account, pick a plan, and run your first analysis batch.
+              </p>
+              <UButton :to="registerPath" color="neutral" label="Create account" />
+            </div>
+          </UCard>
           <LandingWaitlistInlineForm
+            v-else
             source="pricing-section"
-            title="Lock your beta access"
-            description="Join now to lock early bird pricing when your invite is ready."
+            title="Signup is temporarily closed"
+            description="Join the waitlist and we will email you when new access opens."
             button-label="Join waitlist"
           />
         </div>
@@ -567,11 +619,10 @@ const footerColumns = [
         />
       </UPageSection>
 
-      <UPageSection :ui="{ container: 'px-0 sm:px-4' }">
+      <UPageSection :id="signupOpen ? 'get-access' : 'waitlist'" :ui="{ container: 'px-0 sm:px-4' }">
         <UPageCTA
-          id="waitlist"
-          title="Join the waitlist and turn inbox overload into clear opportunities"
-          description="Drop your email and get early access when waitlist seats open."
+          :title="signupOpen ? 'Create your account and start with real signal' : 'Join the waitlist and get notified first'"
+          :description="signupOpen ? 'Start now and turn unread newsletters into ranked opportunities.' : 'Drop your email and we will notify you when signup opens again.'"
           orientation="horizontal"
           class="rounded-none border-y border-[var(--ui-border)] sm:rounded-xl sm:border"
         >
@@ -581,7 +632,7 @@ const footerColumns = [
               <ul class="mt-3 space-y-2 text-sm">
                 <li class="flex items-center gap-2">
                   <UIcon name="i-lucide-check" class="size-4 text-[var(--ui-primary)]" />
-                  Fast setup for non-technical users
+                  Fast setup for non-technical founders
                 </li>
                 <li class="flex items-center gap-2">
                   <UIcon name="i-lucide-check" class="size-4 text-[var(--ui-primary)]" />
@@ -589,15 +640,30 @@ const footerColumns = [
                 </li>
                 <li class="flex items-center gap-2">
                   <UIcon name="i-lucide-check" class="size-4 text-[var(--ui-primary)]" />
-                  Priority list for smarter product bets
+                  Ranked opportunities you can defend
                 </li>
               </ul>
             </div>
 
+            <UCard v-if="signupOpen" class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90">
+              <div class="space-y-3">
+                <p class="text-sm font-semibold text-[var(--ui-text-highlighted)]">
+                  Your unread newsletter backlog is market research
+                </p>
+                <p class="text-sm text-[var(--ui-text-muted)]">
+                  Create an account and convert scattered reading into a repeatable product signal loop.
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <UButton :to="registerPath" color="neutral" label="Create account" />
+                  <UButton to="/login" color="neutral" variant="ghost" label="Sign in" />
+                </div>
+              </div>
+            </UCard>
             <LandingWaitlistInlineForm
+              v-else
               source="final-cta"
-              title="Get early access"
-              description="Enter your email to join the waitlist and lock early bird pricing."
+              title="Get notified first"
+              description="Enter your email and we will send one message when signup opens."
               button-label="Join waitlist"
             />
           </div>
@@ -622,9 +688,9 @@ const footerColumns = [
 
       <template #right>
         <UButton
-          to="#waitlist"
+          :to="signupOpen ? '#get-access' : '#waitlist'"
           icon="i-lucide-rocket"
-          aria-label="Join waitlist"
+          :aria-label="signupOpen ? 'Create account' : 'Join waitlist'"
           color="neutral"
           variant="ghost"
         />

@@ -1,16 +1,48 @@
 <script setup lang="ts">
+import type { ButtonProps } from '@nuxt/ui'
 import type { AudienceLink, AudiencePageContent } from '~/data/audiences'
+
+interface SignupAvailabilityResponse {
+  isOpen: boolean
+}
 
 const props = defineProps<{
   page: AudiencePageContent
   relatedLinks: AudienceLink[]
 }>()
 
+const registerPath = '/register?redirect=/app/upgrade'
+
+const { data: signupAvailability } = await useFetch<SignupAvailabilityResponse>('/api/auth/signup-open', {
+  key: `signup-open-${props.page.slug}`,
+})
+
+const signupOpen = computed(() => signupAvailability.value?.isOpen !== false)
+const ctaSectionId = computed(() => (signupOpen.value ? 'get-access' : 'waitlist'))
+
 const navItems = computed(() => [
   { label: 'Problem', to: '#problem' },
   { label: 'Outcomes', to: '#outcomes' },
-  { label: 'Waitlist', to: '#waitlist' },
+  { label: signupOpen.value ? 'Get access' : 'Waitlist', to: `#${ctaSectionId.value}` },
 ])
+
+const primaryHeaderButton = computed<ButtonProps>(() => (
+  signupOpen.value
+    ? {
+        label: 'Create account',
+        to: registerPath,
+        color: 'neutral',
+      }
+    : {
+        label: 'Join waitlist',
+        to: '#waitlist',
+        color: 'neutral',
+      }
+))
+
+const audienceBadge = computed(() => (
+  props.page.audienceRole === 'primary' ? 'Primary audience' : 'Secondary use case'
+))
 </script>
 
 <template>
@@ -30,8 +62,8 @@ const navItems = computed(() => [
 
       <template #right>
         <UNavigationMenu :items="navItems" variant="link" class="hidden lg:block" />
-        <UButton to="/#waitlist" color="neutral" variant="ghost" label="Main landing" class="hidden sm:inline-flex" />
-        <UButton to="#waitlist" color="neutral" label="Join waitlist" />
+        <UButton to="/" color="neutral" variant="ghost" label="Main landing" class="hidden sm:inline-flex" />
+        <UButton v-bind="primaryHeaderButton" />
       </template>
     </UHeader>
 
@@ -51,18 +83,42 @@ const navItems = computed(() => [
             <span class="ml-2 text-xs text-[var(--ui-text-muted)]">Audience playbook</span>
           </div>
           <div class="p-4">
-            <p class="text-sm font-medium text-[var(--ui-text-muted)]">Ideal for {{ props.page.label }}</p>
-            <p class="mt-2 text-lg font-semibold text-[var(--ui-text-highlighted)]">{{ props.page.proofTitle }}</p>
-            <p class="mt-1 text-sm text-[var(--ui-text-muted)]">{{ props.page.proof }}</p>
+            <UBadge color="neutral" variant="subtle" class="mb-2">
+              {{ audienceBadge }}
+            </UBadge>
+            <p class="text-sm font-medium text-[var(--ui-text-muted)]">
+              Ideal for {{ props.page.label }}
+            </p>
+            <p class="mt-2 text-lg font-semibold text-[var(--ui-text-highlighted)]">
+              {{ props.page.proofTitle }}
+            </p>
+            <p class="mt-1 text-sm text-[var(--ui-text-muted)]">
+              {{ props.page.proof }}
+            </p>
           </div>
         </div>
 
         <div class="mt-6 max-w-xl">
+          <UCard v-if="signupOpen" class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90">
+            <div class="space-y-3">
+              <p class="text-sm font-semibold text-[var(--ui-text-highlighted)]">
+                {{ props.page.primaryCtaLabel }}
+              </p>
+              <p class="text-sm text-[var(--ui-text-muted)]">
+                {{ props.page.primaryCtaDescription }}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <UButton :to="registerPath" color="neutral" label="Create account" />
+                <UButton to="/login" color="neutral" variant="ghost" label="Sign in" />
+              </div>
+            </div>
+          </UCard>
           <LandingWaitlistInlineForm
+            v-else
             :source="`for-${props.page.slug}-hero`"
-            :title="props.page.waitlistTitle"
-            :description="props.page.waitlistDescription"
-            :button-label="props.page.primaryCta"
+            :title="props.page.fallbackWaitlistTitle"
+            :description="props.page.fallbackWaitlistDescription"
+            button-label="Join waitlist"
           />
         </div>
       </UPageHero>
@@ -107,21 +163,33 @@ const navItems = computed(() => [
         </UPageGrid>
 
         <div class="mx-auto mt-8 w-full max-w-2xl">
+          <UCard v-if="signupOpen" class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90">
+            <div class="space-y-3">
+              <p class="text-sm font-semibold text-[var(--ui-text-highlighted)]">
+                Start with one focused newsletter batch
+              </p>
+              <p class="text-sm text-[var(--ui-text-muted)]">
+                Create your account and validate signal quality before scaling volume.
+              </p>
+              <UButton :to="registerPath" color="neutral" label="Create account" />
+            </div>
+          </UCard>
           <LandingWaitlistInlineForm
+            v-else
             :source="`for-${props.page.slug}-middle`"
-            :title="props.page.waitlistTitle"
-            :description="props.page.waitlistDescription"
-            :button-label="props.page.primaryCta"
+            :title="props.page.fallbackWaitlistTitle"
+            :description="props.page.fallbackWaitlistDescription"
+            button-label="Join waitlist"
           />
         </div>
       </UPageSection>
 
       <USeparator class="h-px" />
 
-      <UPageSection id="waitlist" :ui="{ container: 'px-0 sm:px-4' }">
+      <UPageSection :id="ctaSectionId" :ui="{ container: 'px-0 sm:px-4' }">
         <UPageCTA
-          :title="`Built for ${props.page.label}`"
-          description="Join the waitlist and get one email when your invite is ready."
+          :title="signupOpen ? `Create your ${props.page.label} account` : `Join the ${props.page.label} waitlist`"
+          :description="signupOpen ? 'Start now and convert recurring newsletter signal into better decisions.' : 'Signup is paused right now. Join the waitlist and we will contact you first.'"
           orientation="horizontal"
           class="rounded-none border-y border-[var(--ui-border)] sm:rounded-xl sm:border"
         >
@@ -138,11 +206,26 @@ const navItems = computed(() => [
               </ul>
             </UCard>
 
+            <UCard v-if="signupOpen" class="border border-[var(--ui-border)] bg-white/90 dark:bg-neutral-900/90">
+              <div class="space-y-3">
+                <p class="text-sm font-semibold text-[var(--ui-text-highlighted)]">
+                  Turn newsletter reading into a weekly decision system
+                </p>
+                <p class="text-sm text-[var(--ui-text-muted)]">
+                  Create an account and use recurring pain clusters to guide your next move.
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <UButton :to="registerPath" color="neutral" label="Create account" />
+                  <UButton to="/login" color="neutral" variant="ghost" label="Sign in" />
+                </div>
+              </div>
+            </UCard>
             <LandingWaitlistInlineForm
+              v-else
               :source="`for-${props.page.slug}-final`"
-              :title="props.page.waitlistTitle"
-              :description="props.page.waitlistDescription"
-              :button-label="props.page.primaryCta"
+              :title="props.page.fallbackWaitlistTitle"
+              :description="props.page.fallbackWaitlistDescription"
+              button-label="Join waitlist"
             />
           </div>
         </UPageCTA>

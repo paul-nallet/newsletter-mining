@@ -1,0 +1,21 @@
+keyword,url,intent,keyword_type,url_primary_keyword,url_secondary_keyword
+newsletter analysis tool,/,commercial,primary,newsletter analysis tool,extract pain points from newsletters
+extract pain points from newsletters,/,commercial,secondary,newsletter analysis tool,extract pain points from newsletters
+find product ideas from newsletters,/,commercial,secondary,newsletter analysis tool,extract pain points from newsletters
+newsletter pain point detection,/,informational,secondary,newsletter analysis tool,extract pain points from newsletters
+newsletter analysis for indie founders,/for-indie-hackers,commercial,primary,newsletter analysis for indie founders,find saas ideas from newsletters
+find saas ideas from newsletters,/for-indie-hackers,commercial,secondary,newsletter analysis for indie founders,find saas ideas from newsletters
+validate product ideas with newsletters,/for-indie-hackers,informational,secondary,newsletter analysis for indie founders,find saas ideas from newsletters
+indie hacker market research workflow,/for-indie-hackers,informational,secondary,newsletter analysis for indie founders,find saas ideas from newsletters
+market signal detection from newsletters,/for-vcs,commercial,primary,market signal detection from newsletters,vc market research newsletters
+vc market research newsletters,/for-vcs,informational,secondary,market signal detection from newsletters,vc market research newsletters
+recurring demand signals for investors,/for-vcs,informational,secondary,market signal detection from newsletters,vc market research newsletters
+early market pain detection,/for-vcs,informational,secondary,market signal detection from newsletters,vc market research newsletters
+roadmap prioritization market signal,/for-product-managers,commercial,primary,roadmap prioritization market signal,newsletter pain points for product managers
+newsletter pain points for product managers,/for-product-managers,informational,secondary,roadmap prioritization market signal,newsletter pain points for product managers
+external signal for product discovery,/for-product-managers,informational,secondary,roadmap prioritization market signal,newsletter pain points for product managers
+cluster customer pain points automatically,/for-product-managers,commercial,secondary,roadmap prioritization market signal,newsletter pain points for product managers
+consulting market research newsletters,/for-consultants,commercial,primary,consulting market research newsletters,client strategy pain point analysis
+client strategy pain point analysis,/for-consultants,commercial,secondary,consulting market research newsletters,client strategy pain point analysis
+recurring market pain trends tool,/for-consultants,informational,secondary,consulting market research newsletters,client strategy pain point analysis
+newsletter insights for consultants,/for-consultants,informational,secondary,consulting market research newsletters,client strategy pain point analysis
