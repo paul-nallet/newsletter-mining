@@ -31,7 +31,7 @@ export const audiencePages: Record<AudiencePageContent['slug'], AudiencePageCont
     audienceRole: 'primary',
     heroHeadline: 'Primary Audience: Indie Founders',
     heroTitle: 'Your unread newsletters are hiding your next product',
-    heroDescription: 'Stop collecting links you never revisit. Newsletter Mining extracts recurring pain and ranks what to build next from your existing newsletter stack.',
+    heroDescription: 'Stop collecting links you never revisit. ScopeSight extracts recurring pain and ranks what to build next from your existing newsletter stack.',
     primaryCtaLabel: 'Create founder account',
     primaryCtaDescription: 'Start now and run your first analysis batch from one dashboard.',
     painTitle: 'Why most founder research loops stall',
@@ -50,7 +50,7 @@ export const audiencePages: Record<AudiencePageContent['slug'], AudiencePageCont
     proof: 'The product ingests newsletters, extracts problems, and clusters patterns in one flow. No custom pipeline required.',
     fallbackWaitlistTitle: 'Signup is temporarily closed',
     fallbackWaitlistDescription: 'Join the waitlist and we will notify you when founder access reopens.',
-    seoTitle: 'Newsletter Mining for Indie Founders | Turn Newsletters into Product Ideas',
+    seoTitle: 'ScopeSight for Indie Founders | Turn Newsletters into Product Ideas',
     seoDescription: 'Analyze unread newsletters, extract recurring pain points, and prioritize better product ideas with evidence.',
   },
   vcs: {
@@ -78,7 +78,7 @@ export const audiencePages: Record<AudiencePageContent['slug'], AudiencePageCont
     proof: 'The same extraction and clustering workflow can support investment research when adapted by vertical.',
     fallbackWaitlistTitle: 'VC access waitlist',
     fallbackWaitlistDescription: 'Signup is currently paused. Join the waitlist to get invited when access reopens.',
-    seoTitle: 'Newsletter Mining for VCs | Detect Market Pain Signals Early',
+    seoTitle: 'ScopeSight for VCs | Detect Market Pain Signals Early',
     seoDescription: 'Analyze industry newsletters to detect recurring market pain points and emerging opportunities earlier.',
   },
   'product-managers': {
@@ -106,7 +106,7 @@ export const audiencePages: Record<AudiencePageContent['slug'], AudiencePageCont
     proof: 'The workflow runs from newsletter ingestion to clustered pain summaries in one place.',
     fallbackWaitlistTitle: 'PM access waitlist',
     fallbackWaitlistDescription: 'Signup is currently paused. Join the waitlist and we will contact you when access opens.',
-    seoTitle: 'Newsletter Mining for Product Managers | Prioritize with Market Signal',
+    seoTitle: 'ScopeSight for Product Managers | Prioritize with Market Signal',
     seoDescription: 'Extract recurring pain points from newsletters to support stronger roadmap prioritization decisions.',
   },
   consultants: {
@@ -134,7 +134,7 @@ export const audiencePages: Record<AudiencePageContent['slug'], AudiencePageCont
     proof: 'The same ingestion and clustering engine can support consultant-led market monitoring workflows.',
     fallbackWaitlistTitle: 'Consultant access waitlist',
     fallbackWaitlistDescription: 'Signup is currently paused. Join the waitlist and we will notify you when seats reopen.',
-    seoTitle: 'Newsletter Mining for Consultants | Find Recurring Market Pain Faster',
+    seoTitle: 'ScopeSight for Consultants | Find Recurring Market Pain Faster',
     seoDescription: 'Analyze industry newsletters, detect recurring pain points, and strengthen client recommendations with evidence.',
   },
 }

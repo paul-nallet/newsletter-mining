@@ -13,6 +13,7 @@ export default defineNuxtConfig({
     openaiApiKey: process.env.NUXT_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '',
     databaseUrl: process.env.NUXT_DATABASE_URL || process.env.DATABASE_URL || '',
     mailgunWebhookSigningKey: process.env.NUXT_MAILGUN_WEBHOOK_SIGNING_KEY || process.env.MAILGUN_WEBHOOK_SIGNING_KEY || '',
+    mailgunWebhookMaxAgeSeconds: process.env.NUXT_MAILGUN_WEBHOOK_MAX_AGE_SECONDS || process.env.MAILGUN_WEBHOOK_MAX_AGE_SECONDS || '900',
     clusterSimilarityThreshold: process.env.NUXT_CLUSTER_SIMILARITY_THRESHOLD || process.env.CLUSTER_SIMILARITY_THRESHOLD || '0.78',
     betterAuthSecret: process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || '',
     betterAuthUrl: process.env.NUXT_BETTER_AUTH_URL || process.env.BETTER_AUTH_URL || '',

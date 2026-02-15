@@ -53,13 +53,13 @@ const secondaryItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Feedback',
     icon: 'i-lucide-message-circle',
-    to: 'mailto:?subject=Newsletter%20Mining%20Feedback',
+    to: 'mailto:?subject=ScopeSight%20Feedback',
   },
 ])
 
 const userInitials = computed(() => {
   const value = props.currentUserEmail?.trim()
-  if (!value) return 'NM'
+  if (!value) return 'SS'
   return value.slice(0, 2).toUpperCase()
 })
 
@@ -102,7 +102,7 @@ function handleSearchClick() {
         :class="collapsed ? 'justify-center' : 'justify-between'"
       >
         <div v-if="!collapsed" class="min-w-0">
-          <p class="text-sm font-semibold truncate">Newsletter Mining</p>
+          <p class="text-sm font-semibold truncate">ScopeSight</p>
           <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate">
             Opportunity Discovery
           </p>

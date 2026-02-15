@@ -48,15 +48,15 @@ const audienceBadge = computed(() => (
 <template>
   <div class="landing-page min-h-screen">
     <UHeader
-      title="Newsletter Mining"
+      title="ScopeSight"
       :ui="{ root: 'sticky top-0 z-40 border-b border-[var(--ui-border)]/70 bg-white/80 backdrop-blur dark:bg-neutral-950/75' }"
     >
       <template #left>
         <NuxtLink to="/" class="inline-flex items-center gap-2 text-sm font-semibold">
           <span class="inline-flex size-7 items-center justify-center rounded-md bg-[var(--ui-primary)] text-[var(--ui-bg)]">
-            NM
+            SS
           </span>
-          Newsletter Mining
+          ScopeSight
         </NuxtLink>
       </template>
 
@@ -149,7 +149,7 @@ const audienceBadge = computed(() => (
         id="outcomes"
         headline="Outcome"
         :title="props.page.outcomesTitle"
-        description="What Newsletter Mining changes in your weekly workflow."
+        description="What ScopeSight changes in your weekly workflow."
       >
         <UPageGrid class="w-full">
           <UPageCard

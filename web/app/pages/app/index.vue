@@ -6,13 +6,13 @@ const isEmptyState = computed(() => (stats.value?.totalNewsletters ?? 0) === 0 &
 
 const showWelcome = ref(false)
 onMounted(() => {
-  if (!localStorage.getItem('nm-welcome-seen')) {
+  if (!localStorage.getItem('scopesight-welcome-seen')) {
     showWelcome.value = true
   }
 })
 function dismissWelcome() {
   showWelcome.value = false
-  localStorage.setItem('nm-welcome-seen', '1')
+  localStorage.setItem('scopesight-welcome-seen', '1')
 }
 
 </script>
@@ -40,7 +40,7 @@ function dismissWelcome() {
         <div class="max-w-lg w-full space-y-6">
           <div class="text-center">
             <UIcon name="i-lucide-newspaper" class="size-12 mx-auto mb-4 text-[var(--ui-primary)]" />
-            <h2 class="text-xl font-semibold">Welcome to Newsletter Mining</h2>
+            <h2 class="text-xl font-semibold">Welcome to ScopeSight</h2>
             <p class="text-sm text-[var(--ui-text-muted)] mt-1">
               Extract problems and opportunities from your newsletters in 3 steps.
             </p>
@@ -93,7 +93,7 @@ function dismissWelcome() {
       </div>
 
       <!-- Welcome modal -->
-      <UModal v-model:open="showWelcome" title="Welcome to Newsletter Mining" :close="{ color: 'neutral', variant: 'ghost' }">
+      <UModal v-model:open="showWelcome" title="Welcome to ScopeSight" :close="{ color: 'neutral', variant: 'ghost' }">
         <template #body>
           <p class="text-sm text-[var(--ui-text-muted)]">
             This tool helps you extract actionable problems from newsletters.

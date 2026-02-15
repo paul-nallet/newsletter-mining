@@ -1,4 +1,4 @@
-# Newsletter Mining
+# ScopeSight
 
 Extract problems and pain-points from newsletters using LLMs.
 
@@ -19,6 +19,8 @@ uv sync
 
 - `OPENAI_API_KEY`
 - `MAILGUN_WEBHOOK_SIGNING_KEY`
+- `MAILGUN_WEBHOOK_MAX_AGE_SECONDS` (default `900`, reject stale Mailgun signatures to reduce replay risk)
+- `INGEST_EMAIL_DOMAIN` (default `ingest.scopesight.app`, used to generate per-user ingest addresses)
 - `DATABASE_URL`
 - `CLUSTER_SIMILARITY_THRESHOLD` (default `0.78`, lower = broader clusters, higher = stricter clusters)
 - `BETTER_AUTH_SECRET`

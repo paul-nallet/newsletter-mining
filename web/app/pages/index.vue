@@ -17,14 +17,14 @@ useHead({
 })
 
 useSeoMeta({
-  title: 'Newsletter Mining | Find Product Ideas in Unread Newsletters',
+  title: 'ScopeSight | Find Product Ideas in Unread Newsletters',
   description: 'Stop hoarding newsletters. Extract recurring pain points, validate demand, and decide what to build next.',
-  ogTitle: 'Newsletter Mining | Find Product Ideas in Unread Newsletters',
+  ogTitle: 'ScopeSight | Find Product Ideas in Unread Newsletters',
   ogDescription: 'Extract recurring pain points from newsletters and turn inbox noise into product direction.',
   ogImage: '/images/og-cover.png',
   ogType: 'website',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Newsletter Mining | Product Signal from Newsletters',
+  twitterTitle: 'ScopeSight | Product Signal from Newsletters',
   twitterDescription: 'Extract recurring pain points and pick stronger product bets.',
   twitterImage: '/images/og-cover.png',
 })
@@ -332,7 +332,7 @@ const faqItems = ref<AccordionItem[]>([
   },
   {
     label: 'How is this different from just using ChatGPT?',
-    content: 'ChatGPT analyzes one text at a time. Newsletter Mining processes your entire newsletter history, clusters recurring problems across sources, and tracks trends over time.',
+    content: 'ChatGPT analyzes one text at a time. ScopeSight processes your entire newsletter history, clusters recurring problems across sources, and tracks trends over time.',
   },
 ])
 
@@ -369,15 +369,15 @@ const footerColumns = [
 <template>
   <div class="landing-page min-h-screen">
     <UHeader
-      title="Newsletter Mining"
+      title="ScopeSight"
       :ui="{ root: 'sticky top-0 z-40 border-b border-[var(--ui-border)]/70 bg-white/80 backdrop-blur dark:bg-neutral-950/75' }"
     >
       <template #left>
         <NuxtLink to="/" class="inline-flex items-center gap-2 text-sm font-semibold">
           <span class="inline-flex size-7 items-center justify-center rounded-md bg-[var(--ui-primary)] text-[var(--ui-bg)]">
-            NM
+            SS
           </span>
-          Newsletter Mining
+          ScopeSight
         </NuxtLink>
       </template>
 
@@ -400,7 +400,7 @@ const footerColumns = [
       <UPageHero
         headline="Stop hoarding newsletters. Start mining demand."
         title="Turn unread newsletters into product ideas you can defend."
-        description="Newsletter Mining extracts recurring pain points from your backlog so you can pick what to build with evidence, not guesswork."
+        description="ScopeSight extracts recurring pain points from your backlog so you can pick what to build with evidence, not guesswork."
         :links="heroLinks"
         orientation="horizontal"
         :ui="{ container: 'py-16 lg:py-22' }"
@@ -414,7 +414,7 @@ const footerColumns = [
             <span class="size-2.5 rounded-full bg-red-400/60" />
             <span class="size-2.5 rounded-full bg-yellow-400/60" />
             <span class="size-2.5 rounded-full bg-green-400/60" />
-            <span class="ml-2 text-xs text-[var(--ui-text-muted)]">newsletter-mining.com/app</span>
+            <span class="ml-2 text-xs text-[var(--ui-text-muted)]">scopesight.app/app</span>
           </div>
           <div class="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2">
             <div class="rounded-md border border-[var(--ui-border)] p-3">
@@ -682,7 +682,7 @@ const footerColumns = [
 
       <template #left>
         <p class="text-sm text-[var(--ui-text-muted)]">
-          Newsletter Mining - Hidden value from your inbox - {{ new Date().getFullYear() }}
+          ScopeSight - Hidden value from your inbox - {{ new Date().getFullYear() }}
         </p>
       </template>
 
