@@ -35,12 +35,12 @@ const billingItems = [
 const planOptions: PlanOption[] = [
   {
     id: 'starter',
-    title: 'Starter',
-    monthlyPrice: '$0',
-    yearlyPrice: '$0',
-    monthlyLabel: 'free',
-    yearlyLabel: 'free',
-    description: 'A lightweight plan for solo founders starting out.',
+    title: 'Mini',
+    monthlyPrice: '$5',
+    yearlyPrice: '$60',
+    monthlyLabel: 'per month',
+    yearlyLabel: 'per year',
+    description: 'A limited plan for solo founders starting out.',
     features: [
       '50 newsletter analyses per month',
       'Core opportunity dashboard',
@@ -123,6 +123,12 @@ const currentPlan = computed<PlanId>(() => parsePlan(
   activeSubscription.value?.plan?.toLowerCase(),
   'starter',
 ))
+const planLabels: Record<PlanId, string> = {
+  starter: 'Mini',
+  growth: 'Growth',
+  studio: 'Studio',
+}
+const currentPlanLabel = computed(() => planLabels[currentPlan.value] ?? currentPlan.value)
 
 const selectedPlanMeta = computed(() => {
   return planOptions.find((option) => option.id === selectedPlan.value) ?? planOptions[1]
@@ -161,7 +167,7 @@ async function continueToCheckout() {
   if (isStarterDowngradePath.value) {
     toast.add({
       title: 'Downgrade handled in Settings',
-      description: 'Use "Passer a Starter (fin de periode)" in Settings to keep billing consistent.',
+      description: 'Use "Passer a Mini (fin de periode)" in Settings to keep billing consistent.',
       color: 'warning',
     })
     await navigateTo('/app/settings')
@@ -205,7 +211,7 @@ async function continueToCheckout() {
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p class="text-sm text-[var(--ui-text-muted)]">Current subscription</p>
-              <p class="text-lg font-semibold capitalize">{{ currentPlan }}</p>
+              <p class="text-lg font-semibold">{{ currentPlanLabel }}</p>
               <p v-if="activeSubscription.trialEnd" class="text-xs text-[var(--ui-text-muted)]">
                 Trial ends on {{ formatDate(activeSubscription.trialEnd) }}
               </p>
@@ -284,7 +290,7 @@ async function continueToCheckout() {
                 {{ selectedPlanMeta.trialLabel }}
               </p>
               <p v-else class="text-xs text-[var(--ui-text-muted)]">
-                Starter is billed at $0.
+                Mini is billed at $5/month or $60/year.
               </p>
             </div>
 

@@ -5,6 +5,7 @@ interface AdminUser {
   id: string
   email: string
   currentPlan: string
+  currentPlanLabel?: string
   creditsCount: number
   newslettersCount: number
   problemsCount: number
@@ -24,7 +25,18 @@ const { data, pending, error, refresh } = await useFetch<AdminUsersResponse>('/a
   key: 'admin-users',
 })
 
-const users = computed(() => data.value?.users ?? [])
+const planLabels: Record<string, string> = {
+  starter: 'Mini',
+  growth: 'Growth',
+  studio: 'Studio',
+}
+
+const users = computed(() => {
+  return (data.value?.users ?? []).map((user) => ({
+    ...user,
+    currentPlanLabel: planLabels[user.currentPlan] ?? user.currentPlan,
+  }))
+})
 
 const errorMessage = computed(() => {
   const value = error.value as any
@@ -56,13 +68,8 @@ const columns: TableColumn<AdminUser>[] = [
     },
   },
   {
-    accessorKey: 'currentPlan',
+    accessorKey: 'currentPlanLabel',
     header: 'Plan',
-    meta: {
-      class: {
-        td: 'capitalize',
-      },
-    },
   },
   {
     accessorKey: 'newslettersCount',

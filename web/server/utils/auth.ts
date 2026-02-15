@@ -94,9 +94,9 @@ export const auth = betterAuth({
             limits: { credits: 2000 },
           },
         ],
-        getCheckoutSessionParams: ({ plan }) => ({
+        getCheckoutSessionParams: () => ({
           params: {
-            payment_method_collection: plan.name === 'starter' ? 'if_required' : 'always',
+            payment_method_collection: 'always',
           },
         }),
         onSubscriptionComplete: async ({ subscription, plan }) => {
@@ -107,7 +107,7 @@ export const auth = betterAuth({
           await syncCreditLimit(subscription.referenceId, subscription.plan ?? null)
         },
         onSubscriptionCancel: async ({ subscription }) => {
-          // Will revert at period end; set limit to free now so next period gets free limit
+          // Will revert at period end; set limit to baseline now so next period gets baseline limit
           await syncCreditLimit(subscription.referenceId, null)
         },
         onSubscriptionDeleted: async ({ subscription }) => {

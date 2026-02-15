@@ -215,12 +215,12 @@ async function handlePlanUpgrade(plan: string) {
 
 const planSources = ref<PlanSource[]>([
   {
-    title: 'Starter',
+    title: 'Mini',
     planId: 'starter',
     description: 'For founders validating their first signal loop.',
-    monthlyPrice: '$0',
-    yearlyPrice: '$0',
-    billingPeriod: 'Always free',
+    monthlyPrice: '$5',
+    yearlyPrice: '$60',
+    billingPeriod: 'Monthly or yearly billing',
     features: [
       '50 newsletter analyses per month',
       'Core opportunity dashboard',
@@ -228,7 +228,7 @@ const planSources = ref<PlanSource[]>([
       '1 workspace',
     ],
     button: {
-      label: 'Choose Starter',
+      label: 'Choose Mini',
       color: 'neutral',
       variant: 'subtle',
     },

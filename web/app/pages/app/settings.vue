@@ -20,11 +20,12 @@ const activeSubscription = computed(() => {
 })
 
 const currentPlanName = computed(() => {
-  return activeSubscription.value?.plan ?? 'starter'
+  return activeSubscription.value?.plan ?? 'none'
 })
 
 const planLabels: Record<string, string> = {
-  starter: 'Starter (Free)',
+  none: 'No active plan',
+  starter: 'Mini ($5)',
   growth: 'Growth',
   studio: 'Studio',
 }
@@ -307,7 +308,7 @@ async function resetDatabase() {
               {{ activeSubscription.status }}
             </UBadge>
             <UBadge v-else color="neutral" variant="subtle">
-              Free
+              No active plan
             </UBadge>
           </div>
 
@@ -331,7 +332,7 @@ async function resetDatabase() {
               />
               <UButton
                 v-else-if="activeSubscription.plan !== 'starter'"
-                label="Passer a Starter (fin de periode)"
+                label="Passer a Mini (fin de periode)"
                 icon="i-lucide-arrow-down-circle"
                 variant="outline"
                 color="warning"
@@ -341,7 +342,7 @@ async function resetDatabase() {
             </template>
             <template v-else>
               <UButton
-                label="Activer Starter ($0)"
+                label="Activer Mini ($5)"
                 icon="i-lucide-check-circle"
                 variant="soft"
                 color="neutral"
