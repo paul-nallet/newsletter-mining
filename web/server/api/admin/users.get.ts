@@ -4,9 +4,8 @@ import { requireAdmin } from '../../utils/admin'
 interface UserRow {
   id: string
   email: string
-  name: string
-  createdAt: string
-  ingestEmail: string | null
+  currentPlan: string
+  creditsCount: number
   newslettersCount: number
   problemsCount: number
 }
@@ -19,9 +18,15 @@ export default defineEventHandler(async (event) => {
     select
       u.id,
       u.email,
-      u.name,
-      u."createdAt" as "createdAt",
-      up.ingest_email as "ingestEmail",
+      coalesce(active_sub.plan, latest_sub.plan, 'starter') as "currentPlan",
+      coalesce(
+        greatest(acm.credit_limit - acm.reserved_count - acm.consumed_count, 0),
+        case coalesce(active_sub.plan, latest_sub.plan, 'starter')
+          when 'growth' then 500
+          when 'studio' then 2000
+          else 50
+        end
+      )::int as "creditsCount",
       (
         select count(*)
         from newsletters n
@@ -33,7 +38,28 @@ export default defineEventHandler(async (event) => {
         where p.user_id = u.id
       )::int as "problemsCount"
     from "user" u
-    left join user_profiles up on up.user_id = u.id
+    left join lateral (
+      select s.plan
+      from subscription s
+      where s."referenceId" = u.id
+        and s.status in ('active', 'trialing')
+      order by s."updatedAt" desc nulls last
+      limit 1
+    ) active_sub on true
+    left join lateral (
+      select s.plan
+      from subscription s
+      where s."referenceId" = u.id
+      order by s."updatedAt" desc nulls last
+      limit 1
+    ) latest_sub on true
+    left join lateral (
+      select acm.credit_limit, acm.reserved_count, acm.consumed_count
+      from analysis_credit_months acm
+      where acm.user_id = u.id
+      order by acm.period_start desc
+      limit 1
+    ) acm on true
     order by u."createdAt" desc
   `
 

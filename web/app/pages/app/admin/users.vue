@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+
 interface AdminUser {
   id: string
   email: string
-  name: string
-  createdAt: string | Date
-  ingestEmail: string | null
+  currentPlan: string
+  creditsCount: number
   newslettersCount: number
   problemsCount: number
 }
@@ -30,15 +31,60 @@ const errorMessage = computed(() => {
   return value?.data?.statusMessage || value?.message || 'Unable to load users.'
 })
 
-function formatDate(value: string | Date): string {
-  const parsed = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(parsed.getTime())) return 'Unknown'
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(parsed)
-}
+const columns: TableColumn<AdminUser>[] = [
+  {
+    accessorKey: 'id',
+    header: 'ID',
+    meta: {
+      class: {
+        td: 'font-mono text-xs',
+      },
+    },
+  },
+  {
+    accessorKey: 'email',
+    header: 'Email',
+  },
+  {
+    accessorKey: 'creditsCount',
+    header: 'Credits',
+    meta: {
+      class: {
+        th: 'text-right',
+        td: 'text-right font-medium tabular-nums',
+      },
+    },
+  },
+  {
+    accessorKey: 'currentPlan',
+    header: 'Plan',
+    meta: {
+      class: {
+        td: 'capitalize',
+      },
+    },
+  },
+  {
+    accessorKey: 'newslettersCount',
+    header: 'Newsletters',
+    meta: {
+      class: {
+        th: 'text-right',
+        td: 'text-right tabular-nums',
+      },
+    },
+  },
+  {
+    accessorKey: 'problemsCount',
+    header: 'Problems',
+    meta: {
+      class: {
+        th: 'text-right',
+        td: 'text-right tabular-nums',
+      },
+    },
+  },
+]
 </script>
 
 <template>
@@ -83,31 +129,12 @@ function formatDate(value: string | Date): string {
             </div>
           </UCard>
 
-          <UCard v-for="item in users" :key="item.id">
-            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div class="space-y-1">
-                <p class="font-medium">{{ item.name || 'Unnamed user' }}</p>
-                <p class="text-sm text-[var(--ui-text-muted)]">{{ item.email }}</p>
-                <p class="text-xs text-[var(--ui-text-muted)]">Created {{ formatDate(item.createdAt) }}</p>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2">
-                <UBadge color="neutral" variant="subtle">
-                  {{ item.newslettersCount }} newsletters
-                </UBadge>
-                <UBadge color="neutral" variant="subtle">
-                  {{ item.problemsCount }} problems
-                </UBadge>
-                <UBadge
-                  v-if="item.ingestEmail"
-                  color="primary"
-                  variant="soft"
-                  class="max-w-[280px] truncate"
-                >
-                  {{ item.ingestEmail }}
-                </UBadge>
-              </div>
-            </div>
+          <UCard v-else class="overflow-hidden">
+            <UTable
+              :data="users"
+              :columns="columns"
+              class="w-full"
+            />
           </UCard>
         </template>
       </div>
