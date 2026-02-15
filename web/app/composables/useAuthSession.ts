@@ -1,9 +1,10 @@
 interface AuthSession {
   authenticated: boolean
   user: { id: string; email: string; name: string } | null
+  isAdmin: boolean
 }
 
-const defaultSession: AuthSession = { authenticated: false, user: null }
+const defaultSession: AuthSession = { authenticated: false, user: null, isAdmin: false }
 
 export function useAuthSession() {
   const session = useState<AuthSession>('auth-session', () => defaultSession)

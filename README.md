@@ -25,6 +25,7 @@ uv sync
 - `CLUSTER_SIMILARITY_THRESHOLD` (default `0.78`, lower = broader clusters, higher = stricter clusters)
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
+- `ADMIN_EMAIL` (optional, grants access to `/app/admin/users` for this email only)
 - `GOOGLE_CLIENT_ID` (optional, for Google SSO)
 - `GOOGLE_CLIENT_SECRET` (optional, for Google SSO)
 - `STRIPE_SECRET_KEY`

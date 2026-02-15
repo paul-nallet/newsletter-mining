@@ -18,6 +18,7 @@
   <UDashboardGroup>
     <AppSidebar
       :current-user-email="currentUser?.email"
+      :is-admin="session?.isAdmin"
       :credit-status="creditStatus"
       @logout="logout"
     />

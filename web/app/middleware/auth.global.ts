@@ -6,6 +6,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   const isAppPath = to.path === '/app' || to.path.startsWith('/app/')
+  const isAdminPath = to.path === '/app/admin' || to.path.startsWith('/app/admin/')
   const isAuthPath = authPaths.has(to.path)
 
   const { session, fetch } = useAuthSession()
@@ -20,6 +21,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (isAuthenticated && isAuthPath) {
+    return navigateTo('/app')
+  }
+
+  if (isAdminPath && !session.value.isAdmin) {
     return navigateTo('/app')
   }
 })

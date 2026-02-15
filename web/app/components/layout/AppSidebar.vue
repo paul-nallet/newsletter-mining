@@ -5,6 +5,7 @@ import type { CreditStatus } from '#shared/types/credits'
 interface Props {
   currentUserEmail?: string | null
   creditStatus?: CreditStatus | null
+  isAdmin?: boolean
 }
 
 const props = defineProps<Props>()
@@ -25,29 +26,45 @@ function isRouteActive(path: string) {
   if (path === '/app/settings') {
     return route.path.startsWith('/app/settings')
   }
+  if (path === '/app/admin/users') {
+    return route.path.startsWith('/app/admin')
+  }
   return route.path === path
 }
 
-const mainItems = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Top Problems',
-    icon: 'i-lucide-flame',
-    to: '/app',
-    active: isRouteActive('/app'),
-  },
-  {
-    label: 'Newsletters',
-    icon: 'i-lucide-mail',
-    to: '/app/newsletters',
-    active: isRouteActive('/app/newsletters'),
-  },
-  {
-    label: 'Settings',
-    icon: 'i-lucide-settings',
-    to: '/app/settings',
-    active: isRouteActive('/app/settings'),
-  },
-])
+const mainItems = computed<NavigationMenuItem[]>(() => {
+  const items: NavigationMenuItem[] = [
+    {
+      label: 'Top Problems',
+      icon: 'i-lucide-flame',
+      to: '/app',
+      active: isRouteActive('/app'),
+    },
+    {
+      label: 'Newsletters',
+      icon: 'i-lucide-mail',
+      to: '/app/newsletters',
+      active: isRouteActive('/app/newsletters'),
+    },
+    {
+      label: 'Settings',
+      icon: 'i-lucide-settings',
+      to: '/app/settings',
+      active: isRouteActive('/app/settings'),
+    },
+  ]
+
+  if (props.isAdmin) {
+    items.push({
+      label: 'Users',
+      icon: 'i-lucide-users',
+      to: '/app/admin/users',
+      active: isRouteActive('/app/admin/users'),
+    })
+  }
+
+  return items
+})
 
 const secondaryItems = computed<NavigationMenuItem[]>(() => [
   {

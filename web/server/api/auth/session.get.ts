@@ -1,4 +1,5 @@
 import { getHeaders } from 'h3'
+import { isAdminEmail } from '../../utils/admin'
 
 export default defineEventHandler(async (event) => {
   const session = await auth.api.getSession({
@@ -8,5 +9,6 @@ export default defineEventHandler(async (event) => {
   return {
     authenticated: Boolean(session?.user),
     user: session?.user ?? null,
+    isAdmin: isAdminEmail(session?.user?.email),
   }
 })
