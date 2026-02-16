@@ -5,7 +5,19 @@ import { resolve } from 'node:path'
 config({ path: resolve(__dirname, '../.env') })
 
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui', '@nuxtjs/mdc'],
+  modules: ['@nuxt/ui', '@nuxtjs/mdc', 'nuxt-nodemailer'],
+
+  nodemailer: {
+    from: process.env.MAIL_FROM || 'ScopeSight <noreply@mg.scopesight.app>',
+    host: 'smtp.mailgun.org',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.MAILGUN_SMTP_USER || '',
+      pass: process.env.MAILGUN_SMTP_PASS || '',
+    },
+  },
+
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {

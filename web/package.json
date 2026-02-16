@@ -46,6 +46,8 @@
     "@better-auth/cli": "^1.4.18",
     "@iconify-json/lucide": "^1.2.89",
     "drizzle-kit": "^0.31.8",
+    "nodemailer": "^7.0.13",
+    "nuxt-nodemailer": "^1.1.4",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"
   }

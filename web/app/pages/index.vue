@@ -363,6 +363,13 @@ const footerColumns = [
       { label: 'Settings', to: '/app/settings' },
     ],
   },
+  {
+    label: 'Legal',
+    children: [
+      { label: 'Terms of Service', to: '/terms' },
+      { label: 'Privacy Policy', to: '/privacy' },
+    ],
+  },
 ]
 </script>
 

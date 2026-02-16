@@ -6,6 +6,7 @@ import Stripe from 'stripe'
 import { Kysely, PostgresDialect } from 'kysely'
 import { Pool } from 'pg'
 import { generateIngestEmail } from './ingestEmail'
+import { wrapEmailHtml } from './mail'
 import { syncCreditLimit } from './syncCreditLimit'
 import { useDB } from '../database'
 import { userProfiles } from '../database/schema'
@@ -127,6 +128,54 @@ export const auth = betterAuth({
             ingestEmail,
           })
           console.info(`[auth] created profile for user ${user.id} with ingest email ${ingestEmail}`)
+
+          // Send welcome email (non-blocking — must never break signup)
+          try {
+            const { sendMail } = useNodeMailer()
+            const dashboardUrl = `${baseURL}/app/newsletters`
+            const greeting = user.name ? `Hi ${user.name},` : 'Hi,'
+
+            const html = wrapEmailHtml(`
+              <p style="margin:0 0 16px">${greeting}</p>
+              <p style="margin:0 0 16px">Welcome to <strong>ScopeSight</strong>! You're all set to start getting insights from your newsletters.</p>
+              <p style="margin:0 0 8px"><strong>Get started in 2 steps:</strong></p>
+              <ol style="margin:0 0 16px;padding-left:20px">
+                <li style="margin-bottom:8px">Forward your newsletters to your personal ingest address below</li>
+                <li style="margin-bottom:8px">ScopeSight automatically analyzes them and surfaces key insights</li>
+              </ol>
+              <p style="margin:0 0 8px">Your ingest email address:</p>
+              <p style="margin:0 0 24px;padding:12px 16px;background-color:#f4f4f5;border-radius:6px;font-family:monospace;font-size:14px;word-break:break-all">${ingestEmail}</p>
+              <p style="margin:0 0 24px;text-align:center">
+                <a href="${dashboardUrl}" style="display:inline-block;padding:10px 24px;background-color:#18181b;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:600">Go to Dashboard</a>
+              </p>
+              <p style="margin:0;color:#71717a;font-size:13px">Tip: Set up an auto-forward rule in your email client so new newsletters are sent to your ingest address automatically.</p>
+            `, { preheader: 'Your ingest address and quickstart guide' })
+
+            const text = [
+              greeting,
+              '',
+              'Welcome to ScopeSight! You\'re all set to start getting insights from your newsletters.',
+              '',
+              'Get started in 2 steps:',
+              `1. Forward your newsletters to: ${ingestEmail}`,
+              '2. ScopeSight automatically analyzes them and surfaces key insights',
+              '',
+              `Go to your dashboard: ${dashboardUrl}`,
+              '',
+              'Tip: Set up an auto-forward rule in your email client so new newsletters are sent to your ingest address automatically.',
+            ].join('\n')
+
+            await sendMail({
+              to: user.email,
+              subject: 'Welcome to ScopeSight',
+              html,
+              text,
+            })
+            console.info(`[auth] welcome email sent to ${user.email}`)
+          }
+          catch (err) {
+            console.error('[auth] failed to send welcome email:', err)
+          }
         },
       },
     },

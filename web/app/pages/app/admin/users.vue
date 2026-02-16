@@ -25,6 +25,28 @@ const { data, pending, error, refresh } = await useFetch<AdminUsersResponse>('/a
   key: 'admin-users',
 })
 
+const testEmailTo = ref('')
+const testEmailSending = ref(false)
+const testEmailResult = ref<{ ok: boolean, to?: string, error?: string } | null>(null)
+
+async function sendTestEmail() {
+  testEmailSending.value = true
+  testEmailResult.value = null
+  try {
+    const res = await $fetch<{ ok: boolean, to: string }>('/api/admin/test-email', {
+      method: 'POST',
+      body: { to: testEmailTo.value || undefined },
+    })
+    testEmailResult.value = { ok: true, to: res.to }
+  }
+  catch (err: any) {
+    testEmailResult.value = { ok: false, error: err?.data?.statusMessage || err?.message || 'Failed to send' }
+  }
+  finally {
+    testEmailSending.value = false
+  }
+}
+
 const planLabels: Record<string, string> = {
   starter: 'Mini',
   growth: 'Growth',
@@ -114,6 +136,45 @@ const columns: TableColumn<AdminUser>[] = [
 
     <template #body>
       <div class="space-y-4">
+        <UCard>
+          <div class="flex flex-wrap items-end gap-3">
+            <UFormField label="Test email config" class="flex-1">
+              <UInput
+                v-model="testEmailTo"
+                :placeholder="session.user?.email || 'recipient@example.com'"
+                type="email"
+                class="w-full"
+              />
+            </UFormField>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-send"
+              :loading="testEmailSending"
+              @click="sendTestEmail"
+            >
+              Send test email
+            </UButton>
+          </div>
+          <UAlert
+            v-if="testEmailResult?.ok"
+            color="success"
+            variant="subtle"
+            icon="i-lucide-check"
+            :title="`Test email sent to ${testEmailResult.to}`"
+            class="mt-3"
+          />
+          <UAlert
+            v-else-if="testEmailResult && !testEmailResult.ok"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-x"
+            title="Failed to send test email"
+            :description="testEmailResult.error"
+            class="mt-3"
+          />
+        </UCard>
+
         <UAlert
           v-if="error"
           color="error"
