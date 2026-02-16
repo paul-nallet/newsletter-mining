@@ -9,7 +9,7 @@ export default defineNuxtConfig({
 
   nodemailer: {
     from: process.env.MAIL_FROM || 'ScopeSight <noreply@mg.scopesight.app>',
-    host: 'smtp.mailgun.org',
+    host: process.env.MAILGUN_SMTP_HOST || 'smtp.eu.mailgun.org',
     port: 587,
     secure: false,
     auth: {
